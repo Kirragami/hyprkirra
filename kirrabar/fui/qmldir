@@ -19,7 +19,6 @@ NotifPip 1.0 NotifPip.qml
 Reticle 1.0 Reticle.qml
 GlitchText 1.0 GlitchText.qml
 GlitchReveal 1.0 GlitchReveal.qml
-TargetLink 1.0 TargetLink.qml
 LockOverlay 1.0 LockOverlay.qml
 NowPlaying 1.0 NowPlaying.qml
 singleton Spectrum 1.0 Spectrum.qml

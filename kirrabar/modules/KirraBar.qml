@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Hyprland
 import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
@@ -38,34 +37,12 @@ Variants {
         property real boot: 0
         property bool identLive: false
         property bool sectorLive: false
-        property bool tgtLive: false
         property bool clockLive: false
         property bool telLive: false
         property string hexBeat: "A7F0C21D"
         property string menu: ""
         property var trayHandle: null
         property Item trayAnchor: null
-
-        readonly property var focusedWin: Hyprland.activeToplevel
-        readonly property bool noTarget: {
-            const ws = Hyprland.focusedWorkspace
-            if (!ws)
-                return true
-            const tops = ws.toplevels
-            if (tops && tops.values && tops.values.length === 0)
-                return true
-            const t = panel.focusedWin
-            if (!t)
-                return true
-            const title = (t.title || "").trim()
-            return title.length === 0
-        }
-        readonly property string targetName: {
-            const t = panel.focusedWin
-            if (panel.noTarget || !t)
-                return "NO LOCK"
-            return (t.title || "").trim()
-        }
 
         readonly property var bat: UPower.displayDevice
         readonly property bool hasBattery: bat && bat.isLaptopBattery && bat.isPresent
@@ -194,8 +171,7 @@ Variants {
         Timer { interval: 70; running: true; onTriggered: panel.identLive = true }
         Timer { interval: 120; running: true; onTriggered: panel.sectorLive = true }
         Timer { interval: 160; running: true; onTriggered: panel.clockLive = true }
-        Timer { interval: 200; running: true; onTriggered: panel.tgtLive = true }
-        Timer { interval: 240; running: true; onTriggered: panel.telLive = true }
+        Timer { interval: 200; running: true; onTriggered: panel.telLive = true }
 
         Timer {
             interval: 220
@@ -298,45 +274,9 @@ Variants {
                     }
 
                     WorkspaceStrip {
-                        id: sectors
                         minWorkspaces: 5
-                        lineBusy: tgtLink.progress > 0.01
                         opacity: panel.sectorLive ? 1 : 0.35
                         anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Rectangle {
-                        width: 1
-                        height: 22
-                        color: Theme.lineFaint
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    Column {
-                        spacing: 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 210
-
-                            GlitchText {
-                            value: "TGT LOCK"
-                            settled: panel.tgtLive
-                            color: Theme.textMute
-                            font.family: Theme.fontHud
-                            font.pixelSize: 9
-                            font.letterSpacing: 1.6
-                            font.bold: true
-                        }
-
-                        GlitchText {
-                            width: parent.width
-                            value: panel.targetName
-                            settled: panel.tgtLive
-                            glitchOnChange: true
-                            color: Theme.text
-                            font.family: Theme.fontMono
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
-                        }
                     }
                 }
 
@@ -584,15 +524,6 @@ Variants {
             shiftX: -88
             menuHandle: panel.trayHandle
             onDismissed: if (panel.menu === "tray") panel.menu = ""
-        }
-
-        TargetLink {
-            id: tgtLink
-            screen: session.modelData
-            originItem: sectors.anchorItem
-            originWindow: panel
-            locked: !panel.noTarget && panel.menu === ""
-            onRetracted: sectors.settleToFocus()
         }
 
         LockOverlay {

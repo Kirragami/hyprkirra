@@ -6,17 +6,11 @@ import QtQuick
 Item {
     id: strip
     property int minWorkspaces: 5
-    property Item anchorItem: null
-    property bool lineBusy: false
     property int shownId: 0
     property string openSpecial: ""
 
     readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 0
     readonly property string focusedName: Hyprland.focusedWorkspace ? (Hyprland.focusedWorkspace.name || "") : ""
-
-    function publishAnchor(item: Item): void {
-        strip.anchorItem = item
-    }
 
     function canonSpecial(name: string): string {
         const n = (name || "").trim()
@@ -61,12 +55,7 @@ Item {
             strip.shownId = Hyprland.focusedWorkspace.id
     }
 
-    onFocusedIdChanged: {
-        if (strip.shownId === 0 || !strip.lineBusy)
-            strip.settleToFocus()
-        else if (strip.shownId !== strip.focusedId)
-            strip.shownId = 0
-    }
+    onFocusedIdChanged: strip.settleToFocus()
 
     Component.onCompleted: strip.settleToFocus()
 
@@ -227,23 +216,7 @@ Item {
             easing.type: Easing.InCubic
         }
 
-        Item {
-            id: spout
-            width: 1
-            height: 1
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: node.height / 2 + 16.5
-        }
-
-        onIsActiveChanged: {
-            if (node.isActive)
-                strip.publishAnchor(spout)
-        }
-        onXChanged: if (node.isActive) strip.publishAnchor(spout)
-        onYChanged: if (node.isActive) strip.publishAnchor(spout)
         Component.onCompleted: {
-            if (node.isActive)
-                Qt.callLater(() => strip.publishAnchor(spout))
             if (node.wantRings)
                 formIn.restart()
         }
