@@ -1,0 +1,25 @@
+module fui
+singleton Theme 1.0 Theme.qml
+singleton Telemetry 1.0 Telemetry.qml
+singleton Network 1.0 Network.qml
+singleton Bt 1.0 Bt.qml
+singleton Notifs 1.0 Notifs.qml
+HudChassis 1.0 HudChassis.qml
+HudBlade 1.0 HudBlade.qml
+HudRing 1.0 HudRing.qml
+HudPick 1.0 HudPick.qml
+singleton HudStroke 1.0 HudStroke.qml
+ScanOverlay 1.0 ScanOverlay.qml
+TickRail 1.0 TickRail.qml
+WorkspaceStrip 1.0 WorkspaceStrip.qml
+MissionClock 1.0 MissionClock.qml
+Meter 1.0 Meter.qml
+PulsePip 1.0 PulsePip.qml
+NotifPip 1.0 NotifPip.qml
+Reticle 1.0 Reticle.qml
+GlitchText 1.0 GlitchText.qml
+GlitchReveal 1.0 GlitchReveal.qml
+TargetLink 1.0 TargetLink.qml
+LockOverlay 1.0 LockOverlay.qml
+NowPlaying 1.0 NowPlaying.qml
+singleton Spectrum 1.0 Spectrum.qml

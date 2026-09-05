@@ -1,0 +1,14 @@
+module popups
+HudPopup 1.0 HudPopup.qml
+HudRow 1.0 HudRow.qml
+PixelReveal 1.0 PixelReveal.qml
+CalendarPopup 1.0 CalendarPopup.qml
+WifiPopup 1.0 WifiPopup.qml
+BtPopup 1.0 BtPopup.qml
+AudioPopup 1.0 AudioPopup.qml
+MixRow 1.0 MixRow.qml
+BatteryPopup 1.0 BatteryPopup.qml
+SysPopup 1.0 SysPopup.qml
+TrayPopup 1.0 TrayPopup.qml
+MusicPopup 1.0 MusicPopup.qml
+NotifPopup 1.0 NotifPopup.qml

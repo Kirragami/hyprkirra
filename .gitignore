@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Qt / QML
+*.qmlc
+*.jsc
+*.qmlcache
+
+# Editors / OS
+.DS_Store
+*~
+*.swp
+.idea/
+.vscode/
+
+# Env / secrets
+.env
+.env.*
