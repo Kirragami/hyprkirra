@@ -1,0 +1,3 @@
+module svc
+singleton Theme 1.0 Theme.qml
+singleton Usage 1.0 Usage.qml
