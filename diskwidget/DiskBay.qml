@@ -11,7 +11,7 @@ Item {
     property real appear: 0
     property real settle: 0
 
-    readonly property int bayIndex: 1
+    readonly property int bayIndex: 2
     readonly property int bayCount: 3
     readonly property real pad: 10
     readonly property real padY: 46
@@ -74,7 +74,7 @@ Item {
         scale: 0.9 + 0.1 * bay.appear
         opacity: bay.paused ? 0 : (bay.appear > 0.01 ? Math.min(1, 0.35 + 0.65 * bay.appear) : 0)
 
-        UsageCore {
+        DiskCore {
             anchors.fill: parent
             live: bay.compact
             paused: bay.paused

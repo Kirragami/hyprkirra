@@ -28,6 +28,16 @@ QtObject {
             name: "core",
             dir: "usagewidget",
             enabled: true
+        },
+        {
+            name: "disk",
+            dir: "diskwidget",
+            enabled: true
+        },
+        {
+            name: "net",
+            dir: "netwidget",
+            enabled: true
         }
     ]
 

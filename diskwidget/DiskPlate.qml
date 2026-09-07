@@ -15,6 +15,8 @@ Item {
     opacity: plate.live ? 1 : 0
     visible: opacity > 0.02
 
+    readonly property int lastPhase: Disk.hasHome ? 3 : 2
+
     Behavior on opacity {
         NumberAnimation {
             duration: 160
@@ -35,7 +37,7 @@ Item {
         repeat: true
         onTriggered: {
             plate.phase += 1
-            if (plate.phase >= 3)
+            if (plate.phase >= plate.lastPhase)
                 stagger.stop()
         }
     }
@@ -46,7 +48,7 @@ Item {
         spacing: 4
 
         GlitchText {
-            value: "SYS // CORE"
+            value: "SYS // DISK"
             settled: plate.live && plate.phase >= 1
             glitchOnChange: false
             color: Theme.textMute
@@ -58,7 +60,7 @@ Item {
 
         GlitchText {
             width: parent.width
-            value: Usage.cpuLine
+            value: Disk.diskLine
             settled: plate.live && plate.phase >= 2
             glitchOnChange: false
             color: Theme.line
@@ -68,11 +70,12 @@ Item {
         }
 
         GlitchText {
+            visible: Disk.hasHome
             width: parent.width
-            value: Usage.ramLine
+            value: Disk.homeLine
             settled: plate.live && plate.phase >= 3
             glitchOnChange: false
-            color: Theme.warn
+            color: Theme.textDim
             font.pixelSize: 12
             font.letterSpacing: 1.0
             elide: Text.ElideRight

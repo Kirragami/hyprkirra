@@ -28,35 +28,35 @@ ShellRoot {
                 exclusionMode: ExclusionMode.Ignore
                 mask: Region {}
 
-                WlrLayershell.namespace: "kirracore"
+                WlrLayershell.namespace: "kirradisk"
                 WlrLayershell.layer: WlrLayer.Bottom
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-                UsageBay {
-                    id: core
+                DiskBay {
+                    id: bay
                     paused: cover.paused
                 }
 
-                UsagePlate {
-                    id: load
-                    live: core.compact
-                    visible: core.compact && !cover.paused
-                    span: core.plateW
-                    x: core.x + core.width * core.scale + core.textGap
-                    y: core.y + (core.height * core.scale - load.height) * 0.5
+                DiskPlate {
+                    id: card
+                    live: bay.compact
+                    visible: bay.compact && !cover.paused
+                    span: bay.plateW
+                    x: bay.x + bay.width * bay.scale + bay.textGap
+                    y: bay.y + (bay.height * bay.scale - card.height) * 0.5
                 }
 
                 HudFrame {
-                    visible: core.compact && !cover.paused
+                    visible: bay.compact && !cover.paused
                     opacity: visible ? 1 : 0
                     pad: 0
                     arm: 14
                     thick: 1.15
                     inset: 3.5
-                    x: core.x - core.framePad
-                    y: core.y - core.framePad
-                    width: load.x + load.width - core.x + core.framePad * 2
-                    height: core.dock + core.framePad * 2
+                    x: bay.x - bay.framePad
+                    y: bay.y - bay.framePad
+                    width: card.x + card.width - bay.x + bay.framePad * 2
+                    height: bay.dock + bay.framePad * 2
 
                     Behavior on opacity {
                         NumberAnimation {

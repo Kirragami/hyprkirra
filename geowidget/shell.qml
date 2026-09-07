@@ -36,7 +36,8 @@ ShellRoot {
                     id: card
                     live: orb.compact
                     visible: orb.compact && !orb.paused
-                    x: orb.x + orb.width * orb.scale + 16
+                    span: orb.plateW
+                    x: orb.x + orb.width * orb.scale + orb.textGap
                     y: orb.y + (orb.height * orb.scale - card.height) * 0.5
                 }
 
@@ -48,10 +49,10 @@ ShellRoot {
                     arm: 14
                     thick: 1.15
                     inset: 3.5
-                    x: orb.x - 10
-                    y: Math.min(orb.y, card.y) - 10
-                    width: card.x + card.width - orb.x + 20
-                    height: Math.max(orb.height * orb.scale, card.height) + 20
+                    x: orb.x - orb.framePad
+                    y: orb.y - orb.framePad
+                    width: card.x + card.width - orb.x + orb.framePad * 2
+                    height: orb.dock + orb.framePad * 2
 
                     Behavior on opacity {
                         NumberAnimation {

@@ -6,10 +6,13 @@ Item {
     property bool live: false
     property int phase: 0
 
-    implicitWidth: 268
+    property real span: 360
+
+    implicitWidth: plate.span
     implicitHeight: col.implicitHeight
     width: implicitWidth
     height: implicitHeight
+    clip: true
     opacity: plate.live ? 1 : 0
     visible: opacity > 0.02
 

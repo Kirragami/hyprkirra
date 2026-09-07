@@ -15,7 +15,6 @@ Singleton {
 
     readonly property int count: root.subscribed ? root.swayCount : root.items.length
     readonly property bool pending: root.count > 0
-    readonly property string statusLine: root.pending ? (root.count + " PENDING") : "CLEAR"
 
     function ingest(line: string): void {
         const t = (line || "").trim()

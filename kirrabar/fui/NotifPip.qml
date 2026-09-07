@@ -4,7 +4,7 @@ HudPick {
     id: pip
     property bool pending: false
     property bool settled: true
-    property string label: "MAIL"
+    property string label: "ALERTS"
     signal clicked()
     implicitWidth: col.implicitWidth
     implicitHeight: 34
