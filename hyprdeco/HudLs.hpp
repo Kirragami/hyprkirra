@@ -15,7 +15,7 @@ struct SHudStyle {
     float    lineAlpha  = 0.82f;
     float    innerAlpha = 0.7f;
     uint32_t colLine    = 0xffff7a18;
-    uint32_t colDim     = 0xff8a4210;
+    uint32_t colDim     = 0xffff7a18;
 };
 
 inline void hudAddRect(const CBox& box, const CHyprColor& color) {

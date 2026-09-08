@@ -143,7 +143,7 @@ namespace FocusTrail {
         g_style.lineAlpha  = fl(vars.lineAlpha, 0.82f);
         g_style.innerAlpha = fl(vars.innerAlpha, 0.7f);
         g_style.colLine    = cl(vars.colLine, 0xffff7a18);
-        g_style.colDim     = cl(vars.colDim, 0xff8a4210);
+        g_style.colDim     = cl(vars.colDim, 0xffff7a18);
         g_enabled          = bl(vars.enabled, true);
         g_animate          = bl(vars.animate, true);
         g_jumpSec          = std::clamp(fl(vars.jumpSec, 0.28f), 0.05f, 2.f);

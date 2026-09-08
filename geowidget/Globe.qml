@@ -430,6 +430,13 @@ Item {
     }
 
     Connections {
+        target: Accent
+        function onHexChanged(): void {
+            bake.requestPaint()
+        }
+    }
+
+    Connections {
         target: Locate
         function onIso2Changed(): void {
             globe.faceHere()
@@ -514,8 +521,15 @@ Item {
         onPaint: {
             globe.paintMap(getContext("2d"))
             globe.mapReady = true
-            mapSrc.scheduleUpdate()
+            mapSync.restart()
         }
+    }
+
+    Timer {
+        id: mapSync
+        interval: 16
+        repeat: false
+        onTriggered: mapSrc.scheduleUpdate()
     }
 
     ShaderEffectSource {

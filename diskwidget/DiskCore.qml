@@ -190,7 +190,7 @@ Item {
         ctx.rotate(head)
         const reach = hole * 0.90
         const fan = ctx.createLinearGradient(0, 0, reach, 0)
-        const accent = writing ? "255,122,24" : "230,230,230"
+        const accent = writing ? Theme.warnRgb : "230,230,230"
         fan.addColorStop(0, "rgba(" + accent + ",0.20)")
         fan.addColorStop(0.5, "rgba(" + accent + ",0.07)")
         fan.addColorStop(1, "rgba(" + accent + ",0)")

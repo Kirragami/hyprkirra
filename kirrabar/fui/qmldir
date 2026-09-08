@@ -1,4 +1,5 @@
 module fui
+singleton Accent 1.0 Accent.qml
 singleton Theme 1.0 Theme.qml
 singleton Telemetry 1.0 Telemetry.qml
 singleton Network 1.0 Network.qml

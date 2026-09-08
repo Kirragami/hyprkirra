@@ -12,7 +12,7 @@ QtObject {
     readonly property color text: "#f3f3f3"
     readonly property color textDim: "#8a8a8a"
     readonly property color textMute: "#4a4a4a"
-    readonly property color warn: "#ff7a18"
+    readonly property color warn: Accent.warn
     readonly property color ice: "#4aa0c8"
 
     readonly property string fontHud: "Fira Sans"

@@ -26,7 +26,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     }
 
     // Defaults match widget HudFrame geometry: arm 14, thick 1.15, inset 3.5.
-    // Brace color is orange (#ff7a18); widgets stay silver.
+    // Brace color follows custom.lua `accent`; orange is the missing/invalid fallback.
     vars.enabled     = makeShared<Config::Values::CBoolValue>("plugin:kirracorners:enabled", "Draw HUD L-corners on the focused window", true);
     vars.animate     = makeShared<Config::Values::CBoolValue>("plugin:kirracorners:animate", "Animate L-corners jumping to the newly focused window", true);
     vars.wsZoom      = makeShared<Config::Values::CBoolValue>("plugin:kirracorners:ws_zoom", "Zoom workspaces out/in while they fade", true);
@@ -38,7 +38,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     vars.lineAlpha  = makeShared<Config::Values::CFloatValue>("plugin:kirracorners:line_alpha", "Outer L opacity", 0.82f);
     vars.innerAlpha = makeShared<Config::Values::CFloatValue>("plugin:kirracorners:inner_alpha", "Inner tick opacity", 0.7f);
     vars.colLine    = makeShared<Config::Values::CColorValue>("plugin:kirracorners:col.line", "Outer L color", 0xffff7a18);
-    vars.colDim     = makeShared<Config::Values::CColorValue>("plugin:kirracorners:col.dim", "Inner tick color", 0xff8a4210);
+    vars.colDim     = makeShared<Config::Values::CColorValue>("plugin:kirracorners:col.dim", "Inner tick color", 0xffff7a18);
 
     HyprlandAPI::addConfigValueV2(PHANDLE, vars.enabled);
     HyprlandAPI::addConfigValueV2(PHANDLE, vars.animate);

@@ -16,7 +16,7 @@ QtObject {
     readonly property color text: "#f3f3f3"
     readonly property color textDim: "#8a8a8a"
     readonly property color textMute: "#4a4a4a"
-    readonly property color warn: "#ff7a18"
+    readonly property color warn: Accent.warn
     readonly property color callLive: "#3ee06a"
     readonly property color callDead: "#e0182a"
     readonly property color callEdge: "#2bb85a"

@@ -1,4 +1,5 @@
 module svc
+singleton Accent 1.0 Accent.qml
 singleton Theme 1.0 Theme.qml
 singleton Locate 1.0 Locate.qml
 
