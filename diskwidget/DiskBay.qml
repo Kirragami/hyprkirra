@@ -11,8 +11,7 @@ Item {
     property real appear: 0
     property real settle: 0
 
-    readonly property int bayIndex: 2
-    readonly property int bayCount: 3
+    readonly property int stackIndex: 1
     readonly property real pad: 10
     readonly property real padY: 46
     readonly property real dock: 204
@@ -25,13 +24,20 @@ Item {
     }
     readonly property real moduleW: {
         const usable = bay.viewW - bay.pad * 2
-        const gaps = bay.clusterGap * (bay.bayCount - 1)
-        const raw = (usable - gaps) / bay.bayCount
+        const gaps = bay.clusterGap * 2
+        const raw = (usable - gaps) / 3
         const minW = bay.framePad * 2 + bay.dock + bay.textGap + 96
         return Math.max(minW, raw)
     }
     readonly property real plateW: Math.max(96, bay.moduleW - bay.framePad * 2 - bay.dock - bay.textGap)
-    readonly property real dockX: bay.pad + bay.bayIndex * (bay.moduleW + bay.clusterGap) + bay.framePad
+    readonly property real stackPitch: bay.dock + bay.framePad * 2 + bay.clusterGap
+    readonly property real dockX: bay.pad + bay.framePad
+    readonly property real dockY: {
+        const p = bay.parent
+        if (!p)
+            return 0
+        return p.height - bay.dock - bay.padY - bay.stackIndex * bay.stackPitch
+    }
     readonly property real hero: {
         const p = bay.parent
         if (!p)
@@ -58,7 +64,7 @@ Item {
         const p = bay.parent
         if (!p)
             return 0
-        return (p.height - bay.hero) * 0.5 * (1 - bay.settle) + (p.height - bay.dock - bay.padY) * bay.settle
+        return (p.height - bay.hero) * 0.5 * (1 - bay.settle) + bay.dockY * bay.settle
     }
 
     Component.onCompleted: intro.start()

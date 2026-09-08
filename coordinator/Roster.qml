@@ -17,27 +17,38 @@ QtObject {
         {
             name: "bar",
             dir: "kirrabar",
-            enabled: true
+            enabled: true,
+            delayAfter: 700
+        },
+        {
+            name: "holo",
+            dir: "holowidget",
+            enabled: true,
+            delayAfter: 2200
         },
         {
             name: "geo",
             dir: "geowidget",
-            enabled: true
+            enabled: true,
+            delayAfter: 300
         },
         {
             name: "core",
             dir: "usagewidget",
-            enabled: true
+            enabled: true,
+            delayAfter: 300
         },
         {
             name: "disk",
             dir: "diskwidget",
-            enabled: true
+            enabled: true,
+            delayAfter: 300
         },
         {
             name: "net",
             dir: "netwidget",
-            enabled: true
+            enabled: true,
+            delayAfter: 300
         }
     ]
 
@@ -71,8 +82,11 @@ QtObject {
         const w = list[roster.at]
         Quickshell.execDetached(["qs", "-n", "-p", roster.pathOf(w.dir)])
         roster.at += 1
-        if (roster.hasMore())
+        if (roster.hasMore()) {
+            const wait = Number(w.delayAfter)
+            gap.interval = isFinite(wait) && wait >= 0 ? wait : roster.gapMs
             gap.restart()
+        }
     }
 
     property Timer gap: Timer {
