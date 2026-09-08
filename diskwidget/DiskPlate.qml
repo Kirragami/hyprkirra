@@ -15,7 +15,7 @@ Item {
     opacity: plate.live ? 1 : 0
     visible: opacity > 0.02
 
-    readonly property int lastPhase: Disk.hasHome ? 3 : 2
+    readonly property int lastPhase: Disk.hasHome ? 4 : 3
 
     Behavior on opacity {
         NumberAnimation {
@@ -70,10 +70,21 @@ Item {
         }
 
         GlitchText {
+            width: parent.width
+            value: Disk.ioLine
+            settled: plate.live && plate.phase >= 3
+            glitchOnChange: false
+            color: Theme.warn
+            font.pixelSize: 12
+            font.letterSpacing: 1.0
+            elide: Text.ElideRight
+        }
+
+        GlitchText {
             visible: Disk.hasHome
             width: parent.width
             value: Disk.homeLine
-            settled: plate.live && plate.phase >= 3
+            settled: plate.live && plate.phase >= 4
             glitchOnChange: false
             color: Theme.textDim
             font.pixelSize: 12
