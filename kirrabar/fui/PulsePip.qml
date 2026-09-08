@@ -33,18 +33,24 @@ HudPick {
             height: 14
 
             Rectangle {
+                id: gem
                 width: 10
                 height: 10
                 rotation: 45
-                color: pip.live ? Theme.callLive : "#f3f3f3"
+                color: pip.live ? Theme.callLive : Theme.text
                 border.width: 0
                 anchors.centerIn: parent
+                opacity: 1
 
                 SequentialAnimation on opacity {
                     running: pip.live
                     loops: Animation.Infinite
                     NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutSine }
+                    onRunningChanged: {
+                        if (!running)
+                            gem.opacity = 1
+                    }
                 }
             }
         }
@@ -55,5 +61,10 @@ HudPick {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: pip.clicked()
+    }
+
+    onLiveChanged: {
+        if (!pip.live)
+            gem.opacity = 1
     }
 }

@@ -4,12 +4,14 @@ import "../fui"
 HudPopup {
     id: pop
     paneWidth: 340
-    paneHeight: 440
+    paneHeight: 456
 
     onOpenChanged: {
         if (open) {
-            Network.needsPassword = false
-            Network.refresh(true)
+            if (!Network.connecting) {
+                Network.needsPassword = false
+                Network.refresh(true)
+            }
         }
     }
 
@@ -56,6 +58,7 @@ HudPopup {
             label: Network.wifiOn ? "RADIO ON" : "RADIO OFF"
             hint: Network.wifiOn ? "DISABLE" : "ENABLE"
             active: Network.wifiOn
+            enabled: !Network.connecting
             onClicked: Network.toggleRadio()
         }
 
@@ -63,7 +66,7 @@ HudPopup {
             width: parent.width
             label: Network.scanning ? "SCANNING…" : "RESCAN"
             hint: Network.scanning ? "///" : "RUN"
-            enabled: !Network.scanning && Network.wifiOn
+            enabled: !Network.scanning && Network.wifiOn && !Network.connecting
             onClicked: Network.refresh(true)
         }
 
@@ -74,7 +77,7 @@ HudPopup {
         }
 
         Text {
-            text: Network.wired ? "WIRED UPLINK ACTIVE" : "AVAILABLE NODES"
+            text: Network.connecting ? "LINKING NODE" : (Network.wired ? "WIRED UPLINK ACTIVE" : "AVAILABLE NODES")
             color: Theme.textMute
             font.family: Theme.fontHud
             font.pixelSize: 7
@@ -84,14 +87,7 @@ HudPopup {
 
         Flickable {
             width: parent.width
-            height: {
-                let h = 220
-                if (Network.lastError.length > 0)
-                    h -= 28
-                if (Network.needsPassword)
-                    h -= 40
-                return Math.max(96, h)
-            }
+            height: 186
             clip: true
             contentHeight: listCol.height
             boundsBehavior: Flickable.StopAtBounds
@@ -109,19 +105,17 @@ HudPopup {
                         required property var modelData
                         width: listCol.width
                         label: modelData.ssid
-                        hint: modelData.signal + "%"
-                        active: modelData.inUse
-                        chevron: modelData.secure && !modelData.inUse
-                        onClicked: {
+                        hint: {
+                            if (Network.connecting && Network.pendingSsid === modelData.ssid)
+                                return "WAIT"
                             if (modelData.inUse)
-                                return
-                            if (modelData.secure) {
-                                Network.pendingSsid = modelData.ssid
-                                Network.needsPassword = true
-                            } else {
-                                Network.connectSsid(modelData.ssid, "")
-                            }
+                                return "LIVE"
+                            return modelData.signal + "%"
                         }
+                        active: (Network.connecting && Network.pendingSsid === modelData.ssid) || (!Network.connecting && modelData.inUse)
+                        chevron: modelData.secure && !modelData.inUse && !modelData.known && !(Network.connecting && Network.pendingSsid === modelData.ssid)
+                        enabled: Network.wifiOn && (!Network.connecting || Network.pendingSsid === modelData.ssid)
+                        onClicked: Network.activate(modelData)
                     }
                 }
 
@@ -143,7 +137,7 @@ HudPopup {
         }
 
         Text {
-            visible: Network.lastError.length > 0
+            visible: Network.lastError.length > 0 && !Network.connecting
             text: Network.lastError
             color: Theme.text
             font.family: Theme.fontMono
@@ -152,10 +146,25 @@ HudPopup {
             wrapMode: Text.Wrap
         }
 
+        Text {
+            visible: Network.needsPassword && !Network.connecting
+            text: "KEY // " + Network.pendingSsid
+            color: Theme.textMute
+            font.family: Theme.fontHud
+            font.pixelSize: 7
+            font.letterSpacing: 1.4
+            font.bold: true
+        }
+
         Item {
-            visible: Network.needsPassword
+            visible: Network.needsPassword && !Network.connecting
             width: parent.width
             height: 28
+
+            onVisibleChanged: {
+                if (visible)
+                    psk.forceActiveFocus()
+            }
 
             Row {
                 id: keyRow
@@ -188,6 +197,18 @@ HudPopup {
                         color: Theme.bgRaised
                         border.color: psk.activeFocus ? Theme.lineDim : Theme.lineFaint
                         border.width: 1
+                    }
+
+                    Text {
+                        visible: psk.text.length === 0
+                        enabled: false
+                        anchors.fill: parent
+                        leftPadding: 8
+                        verticalAlignment: Text.AlignVCenter
+                        text: "PSK"
+                        color: Theme.textMute
+                        font.family: Theme.fontMono
+                        font.pixelSize: 10
                     }
                 }
 
@@ -225,7 +246,13 @@ HudPopup {
     }
 
     function submitKey(): void {
-        Network.connectSsid(Network.pendingSsid, psk.text)
+        if (Network.connecting)
+            return
+        const ssid = Network.pendingSsid
+        const key = psk.text
         psk.text = ""
+        if (!ssid.length)
+            return
+        Network.connectSsid(ssid, key)
     }
 }

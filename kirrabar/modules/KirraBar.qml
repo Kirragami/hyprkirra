@@ -403,7 +403,7 @@ Variants {
                     PulsePip {
                         id: netPip
                         label: "NET"
-                        live: Telemetry.netUp || Network.wired || Network.activeSsid.length > 0
+                        live: Telemetry.netUp
                         settled: panel.telLive
                         selected: panel.menu === "wifi"
                         opacity: panel.telLive ? 1 : 0.25

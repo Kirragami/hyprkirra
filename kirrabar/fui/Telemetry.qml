@@ -50,21 +50,16 @@ Singleton {
         if (memTotal > 0)
             root.mem = Math.max(0, Math.min(100, Math.round((1 - memAvail / memTotal) * 100)))
 
-        const net = (lines[3] || "unknown").trim().toLowerCase()
-        root.netUp = net === "connected" || net.indexOf("full") !== -1 || net === "up"
-        if (root.netUp)
-            root.netState = "LINK OK"
-        else if (net.indexOf("connect") !== -1)
-            root.netState = "HANDSHAKE"
-        else
-            root.netState = "OFFLINE"
+        const net = (lines[3] || "down").trim().toLowerCase()
+        root.netUp = net === "up"
+        root.netState = root.netUp ? "LINK OK" : "OFFLINE"
     }
 
     Process {
         id: probe
         command: [
             "sh", "-c",
-            "grep '^cpu ' /proc/stat; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; nmcli -t -f STATE general 2>/dev/null | head -1 || echo unknown"
+            "grep '^cpu ' /proc/stat; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; if ping -n -c 1 -W 1 1.1.1.1 >/dev/null 2>&1 || ping -n -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then echo up; else echo down; fi"
         ]
         running: true
         stdout: StdioCollector {
