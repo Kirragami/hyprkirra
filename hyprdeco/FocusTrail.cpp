@@ -1,5 +1,6 @@
 #include "FocusTrail.hpp"
 #include "HudLs.hpp"
+#include "WorkspaceZoom.hpp"
 #include "globals.hpp"
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+#include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 
 using namespace Desktop::View;
@@ -52,6 +54,11 @@ namespace FocusTrail {
             return false;
         if (Fullscreen::controller() && Fullscreen::controller()->isFullscreen(w, Fullscreen::FSMODE_FULLSCREEN))
             return false;
+        if (!w->m_pinned) {
+            const auto ws = w->m_workspace;
+            if (!ws || !ws->isVisible())
+                return false;
+        }
         return true;
     }
 
@@ -69,6 +76,23 @@ namespace FocusTrail {
         g_damaged = now;
     }
 
+    static void hide() {
+        if (!g_ready && !g_window.lock())
+            return;
+        damageLs(g_damaged);
+        damageLs({g_pos, g_size});
+        g_window.reset();
+        g_ready    = false;
+        g_t        = 1.f;
+        g_pos      = {};
+        g_size     = {};
+        g_fromPos  = {};
+        g_fromSize = {};
+        g_toPos    = {};
+        g_toSize   = {};
+        g_damaged  = {};
+    }
+
     static Vector2D mix(const Vector2D& a, const Vector2D& b, float t) {
         return a + (b - a) * t;
     }
@@ -76,6 +100,24 @@ namespace FocusTrail {
     static float ease(float t) {
         t = std::clamp(t, 0.f, 1.f);
         return t * t * (3.f - 2.f * t);
+    }
+
+    static bool followWsZoom(PHLWINDOW w) {
+        return w && WorkspaceZoom::inbound(w->m_workspace);
+    }
+
+    static void pinToZoomingWindow(PHLWINDOW w) {
+        const CBox dest = windowBox(w, IGeometric::GEOMETRIC_GOAL);
+        const CBox box  = WorkspaceZoom::scaledBox(dest, WorkspaceZoom::braceScaleFor(w->m_workspace), w->m_monitor.lock());
+        g_pos           = box.pos();
+        g_size          = box.size();
+        g_toPos         = dest.pos();
+        g_toSize        = dest.size();
+        g_fromPos       = g_pos;
+        g_fromSize      = g_size;
+        g_t             = 1.f;
+        g_ready         = true;
+        damageCurrent();
     }
 
     static void pullConfig(bool commenced) {
@@ -100,8 +142,8 @@ namespace FocusTrail {
         g_style.inset      = fl(vars.inset, 3.5f);
         g_style.lineAlpha  = fl(vars.lineAlpha, 0.82f);
         g_style.innerAlpha = fl(vars.innerAlpha, 0.7f);
-        g_style.colLine    = cl(vars.colLine, 0xffe6e6e6);
-        g_style.colDim     = cl(vars.colDim, 0xff5a5a5a);
+        g_style.colLine    = cl(vars.colLine, 0xffff7a18);
+        g_style.colDim     = cl(vars.colDim, 0xff8a4210);
         g_enabled          = bl(vars.enabled, true);
         g_animate          = bl(vars.animate, true);
         g_jumpSec          = std::clamp(fl(vars.jumpSec, 0.28f), 0.05f, 2.f);
@@ -111,19 +153,30 @@ namespace FocusTrail {
 
     void onFocus(PHLWINDOW window) {
         const auto last = g_window.lock();
-        if (window && last && last.get() == window.get())
+        if (window && last && last.get() == window.get()) {
+            if (followWsZoom(window))
+                pinToZoomingWindow(window);
             return;
+        }
 
-        // Keep the parked L box if focus hits a layer, desktop, or unmapped
-        // window. Resetting g_ready here made the next real jump snap.
-        if (!shouldShow(window))
+        if (!shouldShow(window)) {
+            // Bar / wallpaper click: keep braces on the still-visible window.
+            // Empty workspace: the last window is no longer on this view — drop them.
+            if (!shouldShow(last))
+                hide();
             return;
-
-        const CBox dest     = windowBox(window, IGeometric::GEOMETRIC_GOAL);
-        const bool sameView = last && last->m_workspace == window->m_workspace;
-        const bool canJump  = g_ready && g_animate && sameView && g_damaged.w > 1;
+        }
 
         g_window = window;
+
+        if (followWsZoom(window) || (last && last->m_workspace != window->m_workspace)) {
+            pinToZoomingWindow(window);
+            return;
+        }
+
+        const CBox dest    = windowBox(window, IGeometric::GEOMETRIC_GOAL);
+        const bool canJump = g_ready && g_animate && g_damaged.w > 1;
+
         g_toPos  = dest.pos();
         g_toSize = dest.size();
 
@@ -156,15 +209,23 @@ namespace FocusTrail {
         dt = std::clamp(dt, 0.f, 1.f / 30.f);
 
         const auto w = g_window.lock();
-        if (shouldShow(w)) {
-            const auto type = g_t < 1.f ? IGeometric::GEOMETRIC_GOAL : IGeometric::GEOMETRIC_CURRENT;
-            const CBox dest = windowBox(w, type);
-            g_toPos         = dest.pos();
-            g_toSize        = dest.size();
+        if (!shouldShow(w)) {
+            hide();
+            return;
         }
 
+        if (followWsZoom(w)) {
+            pinToZoomingWindow(w);
+            return;
+        }
+
+        const auto type = g_t < 1.f ? IGeometric::GEOMETRIC_GOAL : IGeometric::GEOMETRIC_CURRENT;
+        const CBox dest = windowBox(w, type);
+        g_toPos         = dest.pos();
+        g_toSize        = dest.size();
+
         if (g_t < 1.f) {
-            g_t          = std::min(1.f, g_t + dt / g_jumpSec);
+            g_t           = std::min(1.f, g_t + dt / g_jumpSec);
             const float e = ease(g_t);
             g_pos         = mix(g_fromPos, g_toPos, e);
             g_size        = mix(g_fromSize, g_toSize, e);

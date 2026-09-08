@@ -11,6 +11,7 @@ add_compile_definitions(WLR_USE_UNSTABLE)
 add_library(kirracorners SHARED
     main.cpp
     FocusTrail.cpp
+    WorkspaceZoom.cpp
 )
 
 set_target_properties(kirracorners PROPERTIES PREFIX "")

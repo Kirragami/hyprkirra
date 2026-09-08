@@ -10,7 +10,9 @@ inline HANDLE PHANDLE = nullptr;
 struct SKirraCornerVars {
     SP<Config::Values::CBoolValue>  enabled;
     SP<Config::Values::CBoolValue>  animate;
+    SP<Config::Values::CBoolValue>  wsZoom;
     SP<Config::Values::CFloatValue> jumpSec;
+    SP<Config::Values::CFloatValue> wsZoomScale;
     SP<Config::Values::CFloatValue> arm;
     SP<Config::Values::CFloatValue> thick;
     SP<Config::Values::CFloatValue> inset;
