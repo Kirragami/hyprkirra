@@ -11,23 +11,46 @@ HudPopup {
 
     property var menuHandle: null
     property var _stack: []
+    property var holdList: []
+
+    readonly property var currentHandle: pop._stack.length > 0 ? pop._stack[pop._stack.length - 1] : pop.menuHandle
+
+    Instantiator {
+        model: pop.holdList
+        delegate: QsMenuOpener {
+            required property var modelData
+            menu: modelData
+        }
+    }
 
     QsMenuOpener {
         id: opener
-        menu: pop.menuHandle
+        menu: pop.currentHandle
     }
 
     onMenuHandleChanged: {
         pop._stack = []
+        pop.syncHold()
         if (pop.open)
             pop.kick()
     }
 
+    function syncHold(): void {
+        const list = []
+        if (pop.menuHandle)
+            list.push(pop.menuHandle)
+        for (let i = 0; i < pop._stack.length; i++)
+            list.push(pop._stack[i])
+        pop.holdList = list
+    }
+
     function pushMenu(entry: var): void {
+        if (!entry)
+            return
         const next = pop._stack.slice()
-        next.push(pop.menuHandle)
+        next.push(entry)
         pop._stack = next
-        pop.menuHandle = entry
+        pop.syncHold()
         pop.kick()
     }
 
@@ -35,8 +58,9 @@ HudPopup {
         if (pop._stack.length === 0)
             return
         const next = pop._stack.slice()
-        pop.menuHandle = next.pop()
+        next.pop()
         pop._stack = next
+        pop.syncHold()
         pop.kick()
     }
 
@@ -113,7 +137,7 @@ HudPopup {
                         separator: modelData.isSeparator
                         label: modelData.text || ""
                         icon: modelData.icon || ""
-                        enabled: modelData.enabled
+                        enabled: !modelData.isSeparator && (modelData.enabled || modelData.hasChildren)
                         chevron: modelData.hasChildren
                         checked: modelData.checkState === Qt.Checked
                         onClicked: {

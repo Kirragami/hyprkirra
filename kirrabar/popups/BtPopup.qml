@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Bluetooth
 import "../fui"
 
 HudPopup {
@@ -58,7 +59,7 @@ HudPopup {
             label: !Bt.available ? "NO RADIO" : (Bt.powered ? "RADIO ON" : "RADIO OFF")
             hint: !Bt.available ? "WAIT" : (Bt.powered ? "DISABLE" : "ENABLE")
             active: Bt.powered
-            enabled: Bt.available
+            enabled: Bt.available && !Bt.busy
             onClicked: Bt.togglePower()
         }
 
@@ -66,7 +67,7 @@ HudPopup {
             width: parent.width
             label: Bt.scanning ? "SCANNING…" : "SCAN"
             hint: Bt.scanning ? "///" : "RUN"
-            enabled: Bt.powered
+            enabled: Bt.powered && !Bt.busy
             onClicked: Bt.toggleScan()
         }
 
@@ -77,7 +78,7 @@ HudPopup {
         }
 
         Text {
-            text: Bt.linked ? "ACTIVE NODES" : "KNOWN NODES"
+            text: Bt.busy ? "LINKING NODE" : (Bt.linked ? "ACTIVE NODES" : "KNOWN NODES")
             color: Theme.textMute
             font.family: Theme.fontHud
             font.pixelSize: 7
@@ -105,9 +106,20 @@ HudPopup {
                         required property var modelData
                         width: listCol.width
                         label: Bt.deviceLabel(modelData)
-                        hint: Bt.deviceHint(modelData)
-                        active: modelData.connected
-                        enabled: Bt.powered
+                        hint: {
+                            if (modelData.pairing || modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting)
+                                return "WAIT"
+                            if (modelData.connected) {
+                                if (modelData.batteryAvailable)
+                                    return Math.round(modelData.battery * 100) + "%"
+                                return "LIVE"
+                            }
+                            if (modelData.paired || modelData.bonded)
+                                return "HOLD"
+                            return "PAIR"
+                        }
+                        active: (Bt.deviceBusy(modelData) && !modelData.connected) || (!Bt.busy && modelData.connected)
+                        enabled: Bt.powered && (!Bt.busy || Bt.deviceBusy(modelData))
                         onClicked: Bt.activate(modelData)
                     }
                 }

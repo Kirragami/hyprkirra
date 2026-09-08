@@ -33,11 +33,22 @@ Singleton {
         return false
     }
 
+    readonly property bool busy: {
+        const vals = root.deviceList()
+        for (let i = 0; i < vals.length; i++) {
+            if (root.deviceBusy(vals[i]))
+                return true
+        }
+        return false
+    }
+
     readonly property string statusLine: {
         if (!root.available)
             return "NO RADIO"
         if (!root.powered)
             return "RADIO OFF"
+        if (root.busy)
+            return "LINKING"
         const vals = root.deviceList()
         const names = []
         for (let i = 0; i < vals.length; i++) {
@@ -57,6 +68,15 @@ Singleton {
         return list && list.values ? list.values : []
     }
 
+    function deviceBusy(d: var): bool {
+        if (!d)
+            return false
+        if (d.pairing)
+            return true
+        const s = d.state
+        return s === BluetoothDeviceState.Connecting || s === BluetoothDeviceState.Disconnecting
+    }
+
     function deviceLabel(d: var): string {
         if (!d)
             return "UNKNOWN"
@@ -67,8 +87,8 @@ Singleton {
     function deviceHint(d: var): string {
         if (!d)
             return ""
-        if (d.pairing)
-            return "PAIRING"
+        if (root.deviceBusy(d))
+            return "WAIT"
         if (d.connected) {
             if (d.batteryAvailable)
                 return Math.round(d.battery * 100) + "%"
@@ -98,10 +118,19 @@ Singleton {
     function activate(d: var): void {
         if (!d || !root.powered)
             return
-        if (d.connected)
-            d.connected = false
-        else if (d.paired || d.bonded)
-            d.connected = true
+        if (d.pairing) {
+            d.cancelPair()
+            return
+        }
+        if (d.state === BluetoothDeviceState.Connecting || d.state === BluetoothDeviceState.Disconnecting)
+            return
+        if (d.connected) {
+            d.disconnect()
+            return
+        }
+        d.trusted = true
+        if (d.paired || d.bonded)
+            d.connect()
         else
             d.pair()
     }
