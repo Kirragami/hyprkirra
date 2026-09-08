@@ -21,4 +21,7 @@ GlitchText 1.0 GlitchText.qml
 GlitchReveal 1.0 GlitchReveal.qml
 LockOverlay 1.0 LockOverlay.qml
 NowPlaying 1.0 NowPlaying.qml
+CallChip 1.0 CallChip.qml
+VoiceWave 1.0 VoiceWave.qml
+singleton CallWatch 1.0 CallWatch.qml
 singleton Spectrum 1.0 Spectrum.qml

@@ -7,6 +7,7 @@ Item {
     id: track
     property bool settled: true
     property bool selected: false
+    readonly property bool compact: track.width <= 318
     property var player: null
     readonly property alias artFace: coverBox
     signal clicked()
@@ -34,8 +35,39 @@ Item {
         }
     }
 
+    function playerName(p: var): string {
+        if (!p)
+            return ""
+        return ((p.identity || "") + " " + (p.dbusName || "") + " " + (p.desktopEntry || "")).toLowerCase()
+    }
+
+    function isBrowser(name: string): bool {
+        return /chrom|firefox|brave|vivaldi|msedge|microsoft-edge|opera|floorp|librewolf/.test(name)
+    }
+
+    function isCallSession(p: var): bool {
+        if (!p)
+            return false
+        const name = track.playerName(p)
+        const title = ((p.trackTitle || "") + " " + (p.trackArtist || "") + " " + (p.trackAlbum || "")).toLowerCase()
+        if (/teams|google meet|zoom|discord|skype|webex|jitsi|slack call|voice connected/.test(title))
+            return true
+        if (/teams|zoom|discord|skype/.test(name) && !track.isBrowser(name))
+            return true
+        if (CallWatch.connected && track.isBrowser(name))
+            return true
+        if (CallWatch.connected && CallWatch.appName.length) {
+            const app = CallWatch.appName.toLowerCase()
+            if (app.length > 2 && name.indexOf(app) !== -1)
+                return true
+        }
+        return false
+    }
+
     function score(p: var): int {
         if (!p)
+            return -1
+        if (track.isCallSession(p))
             return -1
         const playing = p.isPlaying === true || p.playbackState === MprisPlaybackState.Playing
         const paused = !playing && p.playbackState === MprisPlaybackState.Paused
@@ -45,14 +77,16 @@ Item {
         const artist = (p.trackArtist || "").trim()
         if (!playing && !title && !artist)
             return -1
-        const name = ((p.identity || "") + " " + (p.dbusName || "") + " " + (p.desktopEntry || "")).toLowerCase()
+        const name = track.playerName(p)
         let s = playing ? 100 : 40
         if (title.length)
             s += 10
         if (name.indexOf("spotify") !== -1)
             s += 6
-        else if (name.indexOf("firefox") !== -1 || name.indexOf("chrom") !== -1 || name.indexOf("brave") !== -1 || name.indexOf("youtube") !== -1)
+        else if (name.indexOf("youtube") !== -1)
             s += 4
+        else if (track.isBrowser(name))
+            s += 2
         return s
     }
 
@@ -98,12 +132,18 @@ Item {
         function onObjectRemovedPost(object, index): void { track.resync() }
     }
 
+    Connections {
+        target: CallWatch
+        function onConnectedChanged(): void { track.resync() }
+        function onAppNameChanged(): void { track.resync() }
+    }
+
     Component.onCompleted: track.resync()
 
     Binding {
         target: Spectrum
         property: "active"
-        value: track.live && track.playing
+        value: track.live && track.playing && !track.compact && track.width > 318
     }
 
     Item {
@@ -169,7 +209,7 @@ Item {
         Column {
             id: meta
             spacing: 1
-            width: 220
+            width: Math.min(track.compact ? 168 : 220, Math.max(72, track.width - 80))
             anchors.left: coverBox.right
             anchors.leftMargin: 10
             anchors.verticalCenter: parent.verticalCenter
@@ -208,6 +248,7 @@ Item {
 
         Canvas {
             id: wave
+            visible: !track.compact && track.width > 318
             anchors.left: meta.right
             anchors.leftMargin: 12
             anchors.right: parent.right

@@ -52,6 +52,23 @@ Variants {
         readonly property bool volReady: sink !== null && sink.ready && sink.audio !== null
         readonly property bool volMuted: volReady ? sink.audio.muted : false
         readonly property int volPct: volReady && !volMuted ? Math.round(Math.min(1, sink.audio.volume) * 100) : 0
+        readonly property bool musicLive: nowPlaying.live
+        readonly property bool callOpen: callChip.slotOpen
+        readonly property int musicNeed: 360
+        readonly property int musicMin: 168
+        readonly property int callFull: 340
+        readonly property int callMin: 220
+        readonly property int clusterGap: 16
+
+        readonly property int callMax: {
+            if (!panel.callOpen)
+                return panel.callFull
+            if (!panel.musicLive)
+                return panel.callFull
+            const start = leftHud.width + 16 + clock.width
+            const room = rightHud.x - start - panel.clusterGap - 14
+            return Math.max(panel.callMin, Math.min(panel.callFull, room - panel.musicNeed))
+        }
 
         readonly property Item lockFace: {
             const m = panel.menu
@@ -283,7 +300,15 @@ Variants {
                 MissionClock {
                     id: clock
                     anchors.verticalCenter: parent.verticalCenter
-                    x: (nowPlaying.live || nowPlaying.width > 8) ? leftHud.width + 16 : Math.round((hud.width - width) / 2)
+                    x: {
+                        const music = nowPlaying.live || nowPlaying.width > 8
+                        if (music)
+                            return leftHud.width + 16
+                        const centered = Math.round((hud.width - width) / 2)
+                        if (callChip.width > 2 && centered + width + panel.clusterGap > callChip.x)
+                            return leftHud.width + 16
+                        return centered
+                    }
                     settled: panel.clockLive
                     selected: panel.menu === "cal"
                     onClicked: panel.toggleMenu("cal")
@@ -300,7 +325,15 @@ Variants {
                     id: nowPlaying
                     anchors.verticalCenter: parent.verticalCenter
                     x: clock.x + clock.width
-                    width: live ? Math.max(0, rightHud.x - x - 18) : 0
+                    width: {
+                        if (!live)
+                            return 0
+                        if (panel.callOpen) {
+                            const edge = rightHud.x - panel.callMax - 14
+                            return Math.max(panel.musicMin, edge - x - panel.clusterGap)
+                        }
+                        return Math.max(0, rightHud.x - x - 18)
+                    }
                     settled: panel.clockLive
                     selected: panel.menu === "aud"
                     onClicked: panel.toggleMenu("aud")
@@ -315,6 +348,15 @@ Variants {
                             easing.type: Easing.OutCubic
                         }
                     }
+                }
+
+                CallChip {
+                    id: callChip
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: rightHud.left
+                    anchors.rightMargin: callChip.slotOpen ? 14 : 0
+                    maxWidth: panel.callMax
+                    settled: panel.clockLive
                 }
 
                 Row {

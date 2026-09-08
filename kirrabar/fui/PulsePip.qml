@@ -36,7 +36,7 @@ HudPick {
                 width: 10
                 height: 10
                 rotation: 45
-                color: pip.live ? "#3ee06a" : "#f3f3f3"
+                color: pip.live ? Theme.callLive : "#f3f3f3"
                 border.width: 0
                 anchors.centerIn: parent
 
