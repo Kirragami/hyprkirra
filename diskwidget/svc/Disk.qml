@@ -30,8 +30,18 @@ Singleton {
     property string _want: ""
 
     readonly property string diskLine: "DISK  " + root.fmtGi(root.usedGi) + " // " + root.fmtGi(root.totalGi) + " // " + root.pct + "%"
-    readonly property string ioLine: "IO    " + root.fmtBps(root.readBps) + " R // " + root.fmtBps(root.writeBps) + " W // " + root.ioPct + "%"
+    readonly property string ioLine: "IO    " + root.fmtBps(root.readBps) + " R // " + root.fmtBps(root.writeBps) + " W // " + root.padL("" + root.ioPct, 3) + "%"
     readonly property string homeLine: "HOME  " + root.fmtGi(root.homeUsedGi) + " // " + root.fmtGi(root.homeTotalGi) + " // " + root.homePct + "%"
+
+    function padL(s: string, w: int): string {
+        const t = String(s || "")
+        if (t.length >= w)
+            return t
+        let out = t
+        while (out.length < w)
+            out = " " + out
+        return out
+    }
 
     function fmtGi(g: real): string {
         if (!isFinite(g) || g < 0)
@@ -43,13 +53,16 @@ Singleton {
 
     function fmtBps(n: real): string {
         const v = Math.max(0, n)
+        let s = ""
         if (v >= 1073741824)
-            return (v / 1073741824).toFixed(1) + "G"
-        if (v >= 1048576)
-            return (v / 1048576).toFixed(1) + "M"
-        if (v >= 1024)
-            return (v / 1024).toFixed(1) + "K"
-        return Math.round(v) + "B"
+            s = (v / 1073741824).toFixed(1) + "G"
+        else if (v >= 1048576)
+            s = (v / 1048576).toFixed(1) + "M"
+        else if (v >= 1024)
+            s = (v / 1024).toFixed(1) + "K"
+        else
+            s = Math.round(v) + "B"
+        return root.padL(s, 6)
     }
 
     function toGi(bytes: real): real {

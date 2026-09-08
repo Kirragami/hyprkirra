@@ -75,6 +75,7 @@ Item {
             settled: plate.live && plate.phase >= 3
             glitchOnChange: false
             color: Theme.warn
+            font.family: Theme.fontMono
             font.pixelSize: 12
             font.letterSpacing: 1.0
             elide: Text.ElideRight

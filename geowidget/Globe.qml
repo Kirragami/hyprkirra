@@ -39,8 +39,7 @@ Item {
         return (mon && mon.activeWorkspace) || Hyprland.focusedWorkspace
     }
 
-    readonly property int bayIndex: 0
-    readonly property int bayCount: 3
+    readonly property int stackIndex: 0
     readonly property real pad: 10
     readonly property real padY: 46
     readonly property real dock: 204
@@ -53,19 +52,34 @@ Item {
     }
     readonly property real moduleW: {
         const usable = globe.viewW - globe.pad * 2
-        const gaps = globe.clusterGap * (globe.bayCount - 1)
-        const raw = (usable - gaps) / globe.bayCount
+        const gaps = globe.clusterGap * 2
+        const raw = (usable - gaps) / 3
         const minW = globe.framePad * 2 + globe.dock + globe.textGap + 96
         return Math.max(minW, raw)
     }
     readonly property real plateW: Math.max(96, globe.moduleW - globe.framePad * 2 - globe.dock - globe.textGap)
-    readonly property real dockX: globe.pad + globe.bayIndex * (globe.moduleW + globe.clusterGap) + globe.framePad
-    readonly property real hero: {
+    readonly property real stackPitch: globe.dock + globe.framePad * 2 + globe.clusterGap
+    readonly property real viewH: {
+        const p = globe.parent
+        return p && p.height > 1 ? p.height : 1080
+    }
+    readonly property real frameX: globe.pad + globe.moduleW + globe.clusterGap
+    readonly property real frameY: globe.viewH - globe.dock - globe.padY - 3 * globe.stackPitch - globe.framePad
+    readonly property real frameW: globe.moduleW * 2 + globe.clusterGap
+    readonly property real frameH: {
+        const ctrlY = globe.viewH - globe.dock - globe.padY - globe.framePad
+        return Math.max(120, ctrlY - globe.clusterGap - globe.frameY)
+    }
+    readonly property real dockX: globe.pad + globe.moduleW + globe.clusterGap + globe.framePad
+    readonly property real dockY: {
         const p = globe.parent
         if (!p)
-            return 480
-        return Math.min(p.width, p.height) * 0.72
+            return 0
+        return p.height - globe.dock - globe.padY - globe.stackIndex * globe.stackPitch
     }
+    readonly property real hero: globe.dock
+    readonly property real spawnX: globe.frameX + globe.frameW * 0.5 - globe.hero * 0.5
+    readonly property real spawnY: globe.frameY + globe.frameH * 0.34 - globe.hero * 0.5
 
     width: globe.compact ? globe.dock : globe.hero
     height: width
@@ -80,13 +94,13 @@ Item {
         const p = globe.parent
         if (!p)
             return 0
-        return (p.width - globe.hero) * 0.5 * (1 - globe.settle) + globe.dockX * globe.settle
+        return globe.spawnX * (1 - globe.settle) + globe.dockX * globe.settle
     }
     y: {
         const p = globe.parent
         if (!p)
             return 0
-        return (p.height - globe.hero) * 0.5 * (1 - globe.settle) + (p.height - globe.dock - globe.padY) * globe.settle
+        return globe.spawnY * (1 - globe.settle) + globe.dockY * globe.settle
     }
 
     Component.onCompleted: globe.probeCover()
@@ -581,7 +595,7 @@ Item {
             target: globe
             property: "settle"
             to: 1
-            duration: 280
+            duration: 420
             easing.type: Easing.BezierSpline
             easing.bezierCurve: [0.16, 1, 0.3, 1]
         }
