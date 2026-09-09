@@ -1,0 +1,2 @@
+module shared
+singleton Accent 1.0 Accent.qml
