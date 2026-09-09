@@ -54,18 +54,27 @@ Variants {
         readonly property int volPct: volReady && !volMuted ? Math.round(Math.min(1, sink.audio.volume) * 100) : 0
         readonly property bool musicLive: nowPlaying.live
         readonly property bool callOpen: callChip.slotOpen
-        readonly property int musicNeed: 360
+        readonly property bool musicInline: nowPlaying.live && !nowPlaying.remote
+        readonly property bool musicDocked: nowPlaying.live && nowPlaying.remote
+        readonly property int musicNeed: nowPlaying.remote ? Math.max(panel.musicMin, nowPlaying.wantWidth) : 360
         readonly property int musicMin: 168
         readonly property int callFull: 340
         readonly property int callMin: 220
         readonly property int clusterGap: 16
+
+        readonly property int clockLeftX: leftHud.width + 16
+        readonly property int clockCenterX: Math.round((hud.width - clock.width) / 2)
 
         readonly property int callMax: {
             if (!panel.callOpen)
                 return panel.callFull
             if (!panel.musicLive)
                 return panel.callFull
-            const start = leftHud.width + 16 + clock.width
+            if (nowPlaying.remote) {
+                const room = rightHud.x - (panel.clockCenterX + clock.width) - panel.clusterGap - 14
+                return Math.max(panel.callMin, Math.min(panel.callFull, room - nowPlaying.wantWidth))
+            }
+            const start = panel.clockLeftX + clock.width
             const room = rightHud.x - start - panel.clusterGap - 14
             return Math.max(panel.callMin, Math.min(panel.callFull, room - panel.musicNeed))
         }
@@ -301,13 +310,17 @@ Variants {
                     id: clock
                     anchors.verticalCenter: parent.verticalCenter
                     x: {
-                        const music = nowPlaying.live || nowPlaying.width > 8
-                        if (music)
-                            return leftHud.width + 16
-                        const centered = Math.round((hud.width - width) / 2)
-                        if (callChip.width > 2 && centered + width + panel.clusterGap > callChip.x)
-                            return leftHud.width + 16
-                        return centered
+                        if (panel.musicInline)
+                            return panel.clockLeftX
+                        const cx = panel.clockCenterX
+                        if (panel.musicDocked && nowPlaying.width > 8) {
+                            const dock = (callChip.width > 2 ? callChip.x : rightHud.x) - 14 - nowPlaying.wantWidth
+                            if (cx + width + panel.clusterGap > dock)
+                                return panel.clockLeftX
+                        }
+                        if (callChip.width > 2 && cx + width + panel.clusterGap > callChip.x)
+                            return panel.clockLeftX
+                        return cx
                     }
                     settled: panel.clockLive
                     selected: panel.menu === "cal"
@@ -324,15 +337,27 @@ Variants {
                 NowPlaying {
                     id: nowPlaying
                     anchors.verticalCenter: parent.verticalCenter
-                    x: clock.x + clock.width
+                    x: {
+                        if (nowPlaying.remote && nowPlaying.live) {
+                            const edge = callChip.width > 2 ? callChip.x : rightHud.x
+                            return Math.max(0, edge - 14 - nowPlaying.wantWidth)
+                        }
+                        return panel.clockLeftX + clock.width
+                    }
                     width: {
                         if (!live)
                             return 0
+                        if (nowPlaying.remote) {
+                            const edge = callChip.width > 2 ? callChip.x : rightHud.x
+                            const leftLimit = panel.clockCenterX + clock.width + panel.clusterGap
+                            return Math.min(nowPlaying.wantWidth, Math.max(0, edge - 14 - leftLimit))
+                        }
+                        const x0 = panel.clockLeftX + clock.width
                         if (panel.callOpen) {
                             const edge = rightHud.x - panel.callMax - 14
-                            return Math.max(panel.musicMin, edge - x - panel.clusterGap)
+                            return Math.max(panel.musicMin, edge - x0 - panel.clusterGap)
                         }
-                        return Math.max(0, rightHud.x - x - 18)
+                        return Math.max(0, rightHud.x - x0 - 18)
                     }
                     settled: panel.clockLive
                     selected: panel.menu === "aud"
@@ -342,6 +367,12 @@ Variants {
                             panel.menu = ""
                     }
 
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: 360
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                     Behavior on width {
                         NumberAnimation {
                             duration: 360

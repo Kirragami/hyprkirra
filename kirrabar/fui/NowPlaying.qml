@@ -1,6 +1,9 @@
 pragma ComponentBehavior: Bound
 
+import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Mpris
+import Quickshell.Services.Pipewire
 import QtQuick
 
 Item {
@@ -22,6 +25,30 @@ Item {
     readonly property string title: track.player ? (track.player.trackTitle || "UNTITLED") : ""
     readonly property string artist: track.player ? (track.player.trackArtist || track.player.trackAlbumArtist || "") : ""
     readonly property string art: track.player ? (track.player.trackArtUrl || "") : ""
+    readonly property bool spotify: track.playerName(track.player).indexOf("spotify") !== -1
+    property bool spotifyOut: false
+    property bool remoteReady: false
+    property bool remoteLatch: false
+    property int pwGen: 0
+    property string notedDevice: ""
+    property string fetchedDevice: ""
+    readonly property bool away: track.spotify && !track.spotifyOut && (track.playing || track.remoteLatch)
+    readonly property bool remote: track.away && track.remoteReady
+    readonly property bool wide: !track.compact && track.width > 318
+    readonly property int wantWidth: 12 + 1 + 10 + 36 + 10 + 168 + 8 + 28 + 4
+    readonly property string deviceName: {
+        const fetched = (track.fetchedDevice || "").trim()
+        if (fetched.length)
+            return fetched.toUpperCase()
+        const meta = track.deviceField(track.player ? track.player.metadata : null, "name")
+        if (meta.length)
+            return meta
+        const note = (track.notedDevice || "").trim()
+        if (note.length)
+            return note.toUpperCase()
+        return ""
+    }
+    readonly property string deviceLabel: track.deviceName.length ? ("ON " + track.deviceName) : "ON REMOTE"
 
     implicitWidth: 0
     implicitHeight: 44
@@ -39,6 +66,148 @@ Item {
         if (!p)
             return ""
         return ((p.identity || "") + " " + (p.dbusName || "") + " " + (p.desktopEntry || "")).toLowerCase()
+    }
+
+    function metaText(md: var, key: string): string {
+        if (!md || !key)
+            return ""
+        const v = md[key]
+        if (v === undefined || v === null)
+            return ""
+        if (typeof v === "object" && v !== null && v.length !== undefined) {
+            const parts = []
+            for (let i = 0; i < v.length; i++)
+                parts.push(String(v[i] || ""))
+            return parts.join(" ").trim()
+        }
+        return String(v).trim()
+    }
+
+    function parsePlayingOn(text: string): string {
+        const t = (text || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+        if (!t.length)
+            return ""
+        const m = t.match(/playing on\s+(.+)/i) || t.match(/listening on\s+(.+)/i)
+        if (!m)
+            return ""
+        return m[1].replace(/[.!]+$/, "").trim()
+    }
+
+    function harvestNotes(): void {
+        const list = Notifs.items
+        if (!list)
+            return
+        for (let i = 0; i < list.length; i++) {
+            const n = list[i]
+            if (!n)
+                continue
+            const app = String(n.appName || "")
+            const blob = app + " " + String(n.summary || "") + " " + String(n.body || "")
+            if (!/spotif/i.test(blob) && !/spotif/i.test(app))
+                continue
+            const name = track.parsePlayingOn(n.body || "") || track.parsePlayingOn(n.summary || "")
+            if (name.length) {
+                track.notedDevice = name
+                return
+            }
+        }
+    }
+
+    function deviceField(md: var, kind: string): string {
+        if (!md)
+            return ""
+        const names = kind === "type"
+            ? ["xesam:deviceType", "spotify:deviceType", "deviceType", "device_type"]
+            : ["xesam:device", "xesam:deviceName", "spotify:device", "spotify:deviceName", "device", "deviceName", "device_name"]
+        for (let i = 0; i < names.length; i++) {
+            const s = track.metaText(md, names[i])
+            if (s.length)
+                return s.toUpperCase()
+        }
+        let keys = []
+        try {
+            keys = Object.keys(md)
+        } catch (e) {
+            keys = []
+        }
+        const re = kind === "type" ? /device[_ ]?type/i : /(^|:)device(name)?$/i
+        for (let i = 0; i < keys.length; i++) {
+            if (!re.test(keys[i]))
+                continue
+            const s = track.metaText(md, keys[i])
+            if (s.length)
+                return s.toUpperCase()
+        }
+        return ""
+    }
+
+    function nodeBlob(node: var): string {
+        if (!node)
+            return ""
+        const p = node.ready ? (node.properties || {}) : {}
+        return [
+            p["application.name"],
+            p["application.process.binary"],
+            p["application.id"],
+            p["node.name"],
+            node.nickname,
+            node.description,
+            node.name
+        ].map(v => (v || "").toString().toLowerCase()).join(" ")
+    }
+
+    function isSpotifyOut(node: var): bool {
+        if (!node || !node.ready || !node.isStream)
+            return false
+        const cls = String((node.properties || {})["media.class"] || "")
+        if (cls.indexOf("Stream/Output/Audio") === -1)
+            return false
+        return track.nodeBlob(node).indexOf("spotify") !== -1
+    }
+
+    function scanOut(): void {
+        let hit = false
+        if (track.spotify && Pipewire.nodes) {
+            const list = Pipewire.nodes.values
+            for (let i = 0; i < list.length; i++) {
+                if (track.isSpotifyOut(list[i])) {
+                    hit = true
+                    break
+                }
+            }
+        }
+        track.spotifyOut = hit
+    }
+
+    function syncRemote(): void {
+        if (track.spotify && track.playing && !track.spotifyOut) {
+            track.harvestNotes()
+            remoteArm.restart()
+            track.kickDevice()
+        } else if (!track.spotify || track.spotifyOut) {
+            remoteArm.stop()
+            track.remoteReady = false
+            track.remoteLatch = false
+            if (!track.spotify) {
+                track.notedDevice = ""
+                track.fetchedDevice = ""
+            }
+        }
+    }
+
+    function readDevice(raw: string): void {
+        const line = (raw || "").trim().split("\n")[0] || ""
+        if (!line.length)
+            return
+        const name = line.split("\t")[0].trim()
+        if (name.length)
+            track.fetchedDevice = name
+    }
+
+    function kickDevice(): void {
+        if (!track.away || deviceProbe.running)
+            return
+        deviceProbe.running = true
     }
 
     function isBrowser(name: string): bool {
@@ -133,17 +302,109 @@ Item {
     }
 
     Connections {
+        target: Notifs
+        function onItemsChanged(): void {
+            if (track.spotify)
+                track.harvestNotes()
+        }
+    }
+
+    Connections {
         target: CallWatch
         function onConnectedChanged(): void { track.resync() }
         function onAppNameChanged(): void { track.resync() }
     }
 
-    Component.onCompleted: track.resync()
+    Component.onCompleted: {
+        track.resync()
+        track.scanOut()
+        track.syncRemote()
+    }
+
+    onAwayChanged: track.syncRemote()
+    onSpotifyOutChanged: track.syncRemote()
+    onSpotifyChanged: track.scanOut()
+    onPlayingChanged: track.scanOut()
+
+    Timer {
+        id: remoteArm
+        interval: 220
+        onTriggered: {
+            if (track.spotify && !track.spotifyOut) {
+                track.remoteReady = true
+                track.remoteLatch = true
+            }
+        }
+    }
+
+    Timer {
+        interval: 350
+        running: track.spotify
+        repeat: true
+        onTriggered: {
+            track.scanOut()
+            if (track.away)
+                track.harvestNotes()
+        }
+    }
+
+    Process {
+        id: deviceProbe
+        command: ["python3", "-u", Quickshell.shellPath("fui/spotify_device.py")]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: track.readDevice(text)
+        }
+        stderr: StdioCollector {}
+        onExited: {
+            if (track.away)
+                deviceRetry.restart()
+        }
+    }
+
+    Timer {
+        id: deviceRetry
+        interval: 6000
+        onTriggered: track.kickDevice()
+    }
+
+    Timer {
+        interval: 8000
+        running: track.away
+        repeat: true
+        onTriggered: track.kickDevice()
+    }
+
+    Connections {
+        target: Pipewire.nodes
+        function onObjectInsertedPost(object, index): void {
+            track.pwGen++
+            track.scanOut()
+        }
+        function onObjectRemovedPost(object, index): void {
+            track.pwGen++
+            track.scanOut()
+        }
+    }
+
+    PwObjectTracker {
+        objects: {
+            const _ = track.pwGen
+            const out = []
+            const list = Pipewire.nodes.values
+            for (let i = 0; i < list.length; i++) {
+                const n = list[i]
+                if (n && n.isStream)
+                    out.push(n)
+            }
+            return out
+        }
+    }
 
     Binding {
         target: Spectrum
         property: "active"
-        value: track.live && track.playing && !track.compact && track.width > 318
+        value: track.live && track.playing && track.wide && !track.away
     }
 
     Item {
@@ -204,19 +465,55 @@ Item {
                 border.width: 1
                 anchors.centerIn: parent
             }
+
+            Canvas {
+                id: lockTicks
+                anchors.fill: parent
+                visible: track.remote
+                opacity: 0.55 + 0.45 * ping.beat
+                antialiasing: true
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+                onVisibleChanged: requestPaint()
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    const w = width
+                    const h = height
+                    const t = 5
+                    const i = 2.5
+                    ctx.strokeStyle = Theme.line
+                    ctx.lineWidth = 1
+                    ctx.beginPath()
+                    ctx.moveTo(i, i + t)
+                    ctx.lineTo(i, i)
+                    ctx.lineTo(i + t, i)
+                    ctx.moveTo(w - i - t, i)
+                    ctx.lineTo(w - i, i)
+                    ctx.lineTo(w - i, i + t)
+                    ctx.moveTo(w - i, h - i - t)
+                    ctx.lineTo(w - i, h - i)
+                    ctx.lineTo(w - i - t, h - i)
+                    ctx.moveTo(i + t, h - i)
+                    ctx.lineTo(i, h - i)
+                    ctx.lineTo(i, h - i - t)
+                    ctx.stroke()
+                }
+            }
         }
 
         Column {
             id: meta
             spacing: 1
-            width: Math.min(track.compact ? 168 : 220, Math.max(72, track.width - 80))
+            width: Math.min(track.remote || track.compact ? 168 : 220, Math.max(72, track.width - 80 - (track.remote ? 36 : 0)))
             anchors.left: coverBox.right
             anchors.leftMargin: 10
             anchors.verticalCenter: parent.verticalCenter
 
             GlitchText {
-                value: track.playing ? "AUD // LIVE" : "AUD // HOLD"
+                value: track.away ? (track.playing ? "AUD // LINK" : "AUD // HOLD") : (track.playing ? "AUD // LIVE" : "AUD // HOLD")
                 settled: track.settled && track.live
+                glitchOnChange: true
                 color: Theme.textMute
                 font.family: Theme.fontHud
                 font.pixelSize: 9
@@ -236,9 +533,11 @@ Item {
                 elide: Text.ElideRight
             }
 
-            Text {
+            GlitchText {
                 width: parent.width
-                text: track.artist.length ? track.artist : "—"
+                value: track.remote ? track.deviceLabel : (track.artist.length ? track.artist : "—")
+                settled: track.settled && track.live
+                glitchOnChange: true
                 color: Theme.textDim
                 font.family: Theme.fontMono
                 font.pixelSize: 10
@@ -247,8 +546,97 @@ Item {
         }
 
         Canvas {
+            id: ping
+            visible: width > 2
+            width: track.remote ? 28 : 0
+            height: 36
+            anchors.left: meta.right
+            anchors.leftMargin: track.remote ? 8 : 0
+            anchors.verticalCenter: parent.verticalCenter
+            antialiasing: true
+            opacity: track.remote ? 1 : 0
+            property real t: 0
+            readonly property real beat: 0.5 + 0.5 * Math.sin(ping.t * 2.4)
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: 280
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 220
+                }
+            }
+
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onTChanged: requestPaint()
+            onVisibleChanged: requestPaint()
+
+            Timer {
+                interval: 16
+                running: ping.visible
+                repeat: true
+                onTriggered: ping.t += 0.016
+            }
+
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.reset()
+                const w = width
+                const h = height
+                if (w < 8 || h < 8)
+                    return
+
+                const cx = w * 0.5
+                const cy = h * 0.5
+                const maxR = Math.min(w, h) * 0.46
+                const t = ping.t
+
+                ctx.strokeStyle = Theme.lineFaint
+                ctx.lineWidth = 1
+                ctx.globalAlpha = 0.45
+                ctx.beginPath()
+                ctx.arc(cx, cy, maxR, 0, Math.PI * 2)
+                ctx.stroke()
+
+                for (let i = 0; i < 3; i++) {
+                    const u = (t * 0.42 + i / 3) % 1
+                    const r = 3 + u * (maxR - 3)
+                    ctx.beginPath()
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                    ctx.globalAlpha = (1 - u) * 0.55
+                    ctx.strokeStyle = Theme.line
+                    ctx.stroke()
+                }
+
+                ctx.save()
+                ctx.translate(cx, cy)
+                ctx.rotate(t * 1.15)
+                ctx.globalAlpha = 0.55
+                ctx.beginPath()
+                ctx.moveTo(0, 0)
+                ctx.lineTo(maxR * 0.92, 0)
+                ctx.strokeStyle = Theme.line
+                ctx.stroke()
+                ctx.restore()
+
+                ctx.save()
+                ctx.translate(cx, cy)
+                ctx.rotate(45 * Math.PI / 180)
+                ctx.globalAlpha = 0.35 + ping.beat * 0.65
+                ctx.fillStyle = Theme.line
+                ctx.fillRect(-3, -3, 6, 6)
+                ctx.restore()
+                ctx.globalAlpha = 1
+            }
+        }
+
+        Canvas {
             id: wave
-            visible: !track.compact && track.width > 318
+            visible: track.wide && !track.away
             anchors.left: meta.right
             anchors.leftMargin: 12
             anchors.right: parent.right
