@@ -16,11 +16,8 @@ Item {
     opacity: plate.live ? 1 : 0
     visible: opacity > 0.02
 
-    readonly property string netLine: {
-        const lan = Locate.localIp.length ? Locate.localIp : "UNKNOWN"
-        const wan = Locate.online && Locate.ip.length ? Locate.ip : "UNKNOWN"
-        return lan + " // " + wan
-    }
+    readonly property string lanLine: Locate.localIp.length ? Locate.localIp : "UNKNOWN"
+    readonly property string wanLine: Locate.online && Locate.ip.length ? Locate.ip : "UNKNOWN"
 
     Behavior on opacity {
         NumberAnimation {
@@ -85,16 +82,32 @@ Item {
             elide: Text.ElideRight
         }
 
-        GlitchText {
+        Row {
             width: parent.width
-            value: plate.netLine
-            settled: plate.live && plate.phase >= 4
-            glitchOnChange: true
-            color: Theme.textDim
-            font.family: Theme.fontMono
-            font.pixelSize: 12
-            font.letterSpacing: 0.6
-            elide: Text.ElideRight
+            spacing: 0
+
+            GlitchText {
+                id: lanMark
+                value: plate.lanLine + " // "
+                settled: plate.live && plate.phase >= 4
+                glitchOnChange: true
+                color: Theme.textDim
+                font.family: Theme.fontMono
+                font.pixelSize: 12
+                font.letterSpacing: 0.6
+            }
+
+            GlitchText {
+                width: Math.max(24, parent.width - lanMark.width)
+                value: plate.wanLine
+                settled: plate.live && plate.phase >= 4
+                glitchOnChange: true
+                color: Theme.warn
+                font.family: Theme.fontMono
+                font.pixelSize: 12
+                font.letterSpacing: 0.6
+                elide: Text.ElideRight
+            }
         }
     }
 }
