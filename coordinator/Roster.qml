@@ -49,6 +49,12 @@ QtObject {
             dir: "netwidget",
             enabled: true,
             delayAfter: 300
+        },
+        {
+            name: "util",
+            dir: "kirrautil",
+            enabled: true,
+            delayAfter: 200
         }
     ]
 

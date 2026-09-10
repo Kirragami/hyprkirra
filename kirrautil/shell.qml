@@ -1,0 +1,99 @@
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import Quickshell.Io
+import QtQuick
+
+ShellRoot {
+    PanelWindow {
+        id: pane
+
+        property bool isOpen: false
+        readonly property int paneW: {
+            const s = pane.screen
+            return s && s.width > 1 ? s.width : 1920
+        }
+        property real currentMargin: pane.isOpen ? 0 : -(pane.paneW + 48)
+
+        implicitWidth: pane.paneW
+        color: "transparent"
+        visible: pane.isOpen || slideAnim.running
+        exclusionMode: ExclusionMode.Ignore
+
+        WlrLayershell.namespace: "kirrautil"
+        WlrLayershell.layer: WlrLayer.Overlay
+
+        anchors.right: true
+        anchors.top: true
+        anchors.bottom: true
+
+        margins.top: 0
+        margins.bottom: 0
+        margins.right: pane.currentMargin
+
+        Behavior on currentMargin {
+            NumberAnimation {
+                id: slideAnim
+                duration: 260
+                easing.type: Easing.OutQuint
+            }
+        }
+
+        function pickScreen(): var {
+            const list = Quickshell.screens
+            if (!list.length)
+                return null
+            const mon = Hyprland.focusedMonitor
+            if (!mon)
+                return list[0]
+            for (let i = 0; i < list.length; i++) {
+                const hit = Hyprland.monitorFor(list[i])
+                if (hit && hit.id === mon.id)
+                    return list[i]
+            }
+            return list[0]
+        }
+
+        function toggle(): void {
+            if (!pane.isOpen)
+                pane.screen = pane.pickScreen()
+            pane.isOpen = !pane.isOpen
+        }
+
+        Component.onCompleted: pane.screen = pane.pickScreen()
+
+        HyprlandFocusGrab {
+            windows: [pane]
+            active: pane.isOpen
+            onCleared: {
+                if (pane.isOpen)
+                    pane.isOpen = false
+            }
+        }
+
+        Shortcut {
+            sequence: "Escape"
+            onActivated: {
+                if (pane.isOpen)
+                    pane.isOpen = false
+            }
+        }
+
+        IpcHandler {
+            target: "kirrautil"
+            function toggle(): void { pane.toggle() }
+            function open(): void {
+                pane.screen = pane.pickScreen()
+                pane.isOpen = true
+            }
+            function close(): void { pane.isOpen = false }
+            function isOpen(): bool { return pane.isOpen }
+        }
+
+        UtilRail {
+            id: rail
+            open: pane.isOpen
+            anchors.fill: parent
+        }
+    }
+}
