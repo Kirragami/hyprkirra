@@ -9,6 +9,8 @@ Item {
     property bool open: false
     property real boot: 0
 
+    signal dismiss()
+
     readonly property bool mapped: rail.open || outAnim.running || inAnim.running
     readonly property int padN: Links.nodes.length
     readonly property int padH: 48
@@ -182,12 +184,12 @@ Item {
                 color: "#00000000"
             }
             GradientStop {
-                position: 0.52
-                color: "#00000000"
+                position: 0.08
+                color: "#33070707"
             }
             GradientStop {
-                position: 0.70
-                color: "#66070707"
+                position: 0.28
+                color: "#99070707"
             }
             GradientStop {
                 position: 1.0
@@ -235,6 +237,12 @@ Item {
             }
             ctx.globalAlpha = 1
         }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: rail.open
+        onClicked: rail.dismiss()
     }
 
     Repeater {

@@ -11,7 +11,12 @@ ShellRoot {
         property bool isOpen: false
         readonly property int paneW: {
             const s = pane.screen
-            return s && s.width > 1 ? s.width : 1920
+            const h = s && s.height > 1 ? s.height : 1080
+            const w = s && s.width > 1 ? s.width : 1920
+            const hubR = h * 0.4
+            const need = Math.ceil(hubR * 1.42 + 214 + 38 + 34 + 80)
+            const cap = Math.floor(w * 0.52)
+            return Math.min(cap, Math.max(560, need))
         }
         property real currentMargin: pane.isOpen ? 0 : -(pane.paneW + 48)
 
@@ -60,13 +65,28 @@ ShellRoot {
             pane.isOpen = !pane.isOpen
         }
 
+        property bool grabArmed: false
+
+        onIsOpenChanged: {
+            if (pane.isOpen)
+                armGrab.restart()
+            else
+                pane.grabArmed = false
+        }
+
+        Timer {
+            id: armGrab
+            interval: 50
+            onTriggered: pane.grabArmed = true
+        }
+
         Component.onCompleted: pane.screen = pane.pickScreen()
 
         HyprlandFocusGrab {
             windows: [pane]
-            active: pane.isOpen
+            active: pane.isOpen && pane.grabArmed
             onCleared: {
-                if (pane.isOpen)
+                if (pane.grabArmed && pane.isOpen)
                     pane.isOpen = false
             }
         }
@@ -94,6 +114,7 @@ ShellRoot {
             id: rail
             open: pane.isOpen
             anchors.fill: parent
+            onDismiss: pane.isOpen = false
         }
     }
 }
