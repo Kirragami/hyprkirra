@@ -1,0 +1,4 @@
+module svc
+singleton Accent 1.0 Accent.qml
+singleton Theme 1.0 Theme.qml
+singleton HudStroke 1.0 HudStroke.qml
