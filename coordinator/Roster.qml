@@ -21,6 +21,12 @@ QtObject {
             delayAfter: 700
         },
         {
+            name: "noti",
+            dir: "kirranoti",
+            enabled: true,
+            delayAfter: 200
+        },
+        {
             name: "holo",
             dir: "holowidget",
             enabled: true,
