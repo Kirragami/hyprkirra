@@ -103,7 +103,7 @@ namespace FocusTrail {
     }
 
     static bool followWsZoom(PHLWINDOW w) {
-        return w && WorkspaceZoom::inbound(w->m_workspace);
+        return w && !w->m_pinned && WorkspaceZoom::inbound(w->m_workspace);
     }
 
     static void pinToZoomingWindow(PHLWINDOW w) {

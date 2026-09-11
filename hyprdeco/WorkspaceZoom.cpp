@@ -5,6 +5,7 @@
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/desktop/Workspace.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
@@ -123,7 +124,8 @@ namespace WorkspaceZoom {
             return;
         }
 
-        const float s = scaleFor(pWindow->m_workspace);
+        // Pinned windows stay on every workspace; don't zoom them with the switch.
+        const float s = pWindow->m_pinned ? 1.f : scaleFor(pWindow->m_workspace);
         g_inHook      = true;
         pushScale(pMonitor, s);
         orig(thisptr, pWindow, pMonitor, time, decorate, mode, ignorePosition, standalone);

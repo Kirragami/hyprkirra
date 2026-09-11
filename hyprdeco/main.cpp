@@ -62,7 +62,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     });
     FocusTrail::onFocus(Desktop::focusState()->window());
 
-    return {"kirracorners", "HUD L-corners that jump to the focused window", "kirra", "1.1"};
+    return {"kirracorners", "HUD L-corners that jump to the focused window", "kirra", "1.2"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
