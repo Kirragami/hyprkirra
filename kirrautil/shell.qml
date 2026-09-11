@@ -18,11 +18,10 @@ ShellRoot {
             const cap = Math.floor(w * 0.52)
             return Math.min(cap, Math.max(560, need))
         }
-        property real currentMargin: pane.isOpen ? 0 : -(pane.paneW + 48)
 
         implicitWidth: pane.paneW
         color: "transparent"
-        visible: pane.isOpen || slideAnim.running
+        visible: pane.isOpen || rail.mapped
         exclusionMode: ExclusionMode.Ignore
 
         WlrLayershell.namespace: "kirrautil"
@@ -34,15 +33,7 @@ ShellRoot {
 
         margins.top: 0
         margins.bottom: 0
-        margins.right: pane.currentMargin
-
-        Behavior on currentMargin {
-            NumberAnimation {
-                id: slideAnim
-                duration: 260
-                easing.type: Easing.OutQuint
-            }
-        }
+        margins.right: 0
 
         function pickScreen(): var {
             const list = Quickshell.screens

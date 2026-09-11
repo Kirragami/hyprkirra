@@ -58,10 +58,30 @@ Item {
         return 1 - (1 - x) * (1 - x) * (1 - x)
     }
 
+    function easeWipe(u: real): real {
+        const x = Math.max(0, Math.min(1, u))
+        return x * x * (3 - 2 * x)
+    }
+
     function gate(a: real, b: real): real {
         if (space.boot >= 1)
             return 1
         return Math.max(0, Math.min(1, (space.boot - a) / Math.max(0.001, b - a)))
+    }
+
+    function layerG(g: int): real {
+        const a = (6 - g) * 0.11
+        return space.ease(space.gate(a, a + 0.14))
+    }
+
+    function slabG(seq: int, n: int): real {
+        const a = (seq / Math.max(1, n)) * 0.78
+        return space.easeWipe(space.gate(a, a + 0.16))
+    }
+
+    function slabFromEnd(a: real, r: real, s: real): bool {
+        const u = Math.sin(a * 12.9898 + r * 78.233 + s * 37.719) * 43758.5453
+        return u - Math.floor(u) >= 0.5
     }
 
     Timer {
@@ -129,10 +149,6 @@ Item {
             if (name === "faint")
                 return faint
             return ink
-        }
-
-        function grow(a, b) {
-            return space.ease(space.gate(a, b))
         }
 
         function pack(r) {
@@ -258,14 +274,13 @@ Item {
             arcLine(r - rw, 1, a0, span, col, alpha * 1.15, 0, 0)
         }
 
-        const g0 = grow(0.00, 0.18)
-        const g1 = grow(0.10, 0.32)
-        const g2 = grow(0.22, 0.48)
-        const g3 = grow(0.36, 0.62)
-        const g4 = grow(0.50, 0.76)
-        const g5 = grow(0.62, 0.88)
-        const g6 = grow(0.76, 1.00)
-        const gs = [g0, g1, g2, g3, g4, g5, g6]
+        const g0 = space.layerG(0)
+        const g1 = space.layerG(1)
+        const g2 = space.layerG(2)
+        const g3 = space.layerG(3)
+        const g4 = space.layerG(4)
+        const g5 = space.layerG(5)
+        const g6 = space.layerG(6)
 
         const slabs = [
             { r: 0.80, rw: 0.09, a: 0.08, s: 1.18, f: 0, k: 0.7, c: "ink", g: 0, sp: 3, w: 1.2, out: 1 },
@@ -401,31 +416,69 @@ Item {
         if (g5 > 0.02)
             ring(R * pack(0.29), 1.05, dim, 0.55 * g5)
 
+        const plist = space.linkPorts
+        const order = []
+        for (let i = 0; i < slabs.length; i++) {
+            if (space.isPortSlab(slabs[i]))
+                continue
+            order.push({
+                kind: 0,
+                i: i,
+                g: slabs[i].g,
+                a: slabs[i].a
+            })
+        }
+        for (let i = 0; i < plist.length; i++) {
+            const p = plist[i]
+            order.push({
+                kind: 1,
+                i: i,
+                g: p.r > 0.8 ? 1 : (p.r > 0.7 ? 2 : 3),
+                a: p.a
+            })
+        }
+        order.sort(function (u, v) {
+            if (u.g !== v.g)
+                return v.g - u.g
+            return u.a - v.a
+        })
+        const nAll = order.length
+        const seqS = []
+        const seqP = []
+        for (let s = 0; s < order.length; s++) {
+            if (order[s].kind === 0)
+                seqS[order[s].i] = s
+            else
+                seqP[order[s].i] = s
+        }
+
         for (let i = 0; i < slabs.length; i++) {
             const p = slabs[i]
             if (space.isPortSlab(p))
                 continue
-            const g = gs[p.g]
-            if (g < 0.03)
+            const g = space.slabG(seqS[i], nAll)
+            if (g < 0.02)
                 continue
-            const a0 = p.a
+            const sp = p.s * g
+            const a0 = space.slabFromEnd(p.a, p.r, p.s) ? p.a + p.s - sp : p.a
             const rr = p.out ? p.r : pack(p.r)
             const th = throb(rr)
             const rwMul = (p.out ? 1 : 1.18) * (0.985 + 0.03 * (th - 1) / 0.065)
-            slab(R * rr, R * p.rw * rwMul, a0, p.s * g, tint(p.c), p.f * (p.f > 0 ? 1.25 * g * th : 0), p.k * g * th, (p.glow || 0) * g * th, p.w)
+            slab(R * rr, R * p.rw * rwMul, a0, sp, tint(p.c), p.f * (p.f > 0 ? 1.25 * th : 0), p.k * th, (p.glow || 0) * th, p.w)
         }
 
-        const gLink = gs[4]
-        if (gLink > 0.03) {
-            const plist = space.linkPorts
-            for (let i = 0; i < plist.length; i++) {
-                const p = plist[i]
-                const on = space.liveSig.charAt(i) === "1"
-                const rr = pack(p.r)
-                const th = throb(rr)
-                const col = on ? warn : ink
-                slab(R * rr, R * p.rw * 1.18 * th, p.a, p.s * gLink, col, (on ? 0.32 : 0.05) * gLink * th, (on ? 0.95 : 0.75) * gLink * th, (on ? 0.16 : 0) * gLink, on ? 1.4 : 1.1)
-            }
+        for (let i = 0; i < plist.length; i++) {
+            const p = plist[i]
+            const on = space.liveSig.charAt(i) === "1"
+            const g = space.slabG(seqP[i], nAll)
+            if (g < 0.02)
+                continue
+            const sp = p.s * g
+            const a0 = space.slabFromEnd(p.a, p.r, p.s) ? p.a + p.s - sp : p.a
+            const rr = pack(p.r)
+            const th = throb(rr)
+            const col = on ? warn : ink
+            slab(R * rr, R * p.rw * 1.18 * th, a0, sp, col, (on ? 0.32 : 0.05) * th, (on ? 0.95 : 0.75) * th, (on ? 0.16 : 0), on ? 1.4 : 1.1)
         }
 
         if (g1 > 0.02) {

@@ -19,34 +19,6 @@ Item {
     readonly property real leadD: 38
     readonly property real leadRun: 34
 
-    property var appearOrder: [0, 1, 2, 3, 4, 5]
-    property int appearSeed: 0
-
-    function shuffleOrder(): void {
-        const n = rail.padN
-        const ord = []
-        for (let i = 0; i < n; i++)
-            ord.push(i)
-        for (let i = n - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
-            const t = ord[i]
-            ord[i] = ord[j]
-            ord[j] = t
-        }
-        rail.appearOrder = ord
-        rail.appearSeed += 1
-    }
-
-    function appearRank(i: int): int {
-        const _ = rail.appearSeed
-        const ord = rail.appearOrder
-        for (let k = 0; k < ord.length; k++) {
-            if (ord[k] === i)
-                return k
-        }
-        return i
-    }
-
     function lastIndex(): int {
         let best = 0
         let y = -Infinity
@@ -120,49 +92,40 @@ Item {
     }
 
     function lineReveal(i: int): real {
-        const r = rail.appearRank(i)
-        const a = 0.06 + r * 0.12
-        const b = a + 0.2
+        const a = 0.48 + i * 0.05
         if (rail.boot >= 1)
             return 1
-        return Math.max(0, Math.min(1, (rail.boot - a) / Math.max(0.001, b - a)))
+        return Math.max(0, Math.min(1, (rail.boot - a) / 0.1))
     }
 
     function padReveal(i: int): real {
-        const r = rail.appearRank(i)
-        const a = 0.06 + r * 0.12 + 0.18
-        const b = a + 0.14
+        const a = 0.54 + i * 0.05
         if (rail.boot >= 1)
             return 1
-        return Math.max(0, Math.min(1, (rail.boot - a) / Math.max(0.001, b - a)))
+        return Math.max(0, Math.min(1, (rail.boot - a) / 0.08))
     }
 
     onOpenChanged: {
         if (rail.open) {
             outAnim.stop()
-            rail.boot = 0
-            rail.shuffleOrder()
             Links.watching = true
+            inAnim.duration = Math.max(1, Math.round(520 * (1 - rail.boot)))
             inAnim.restart()
         } else {
             inAnim.stop()
             Links.watching = false
+            outAnim.duration = Math.max(1, Math.round(520 * rail.boot))
             outAnim.restart()
         }
     }
 
-    SequentialAnimation {
+    NumberAnimation {
         id: inAnim
-        PauseAnimation {
-            duration: 40
-        }
-        NumberAnimation {
-            target: rail
-            property: "boot"
-            to: 1
-            duration: 620
-            easing.type: Easing.Linear
-        }
+        target: rail
+        property: "boot"
+        to: 1
+        duration: 520
+        easing.type: Easing.Linear
     }
 
     NumberAnimation {
@@ -170,13 +133,13 @@ Item {
         target: rail
         property: "boot"
         to: 0
-        duration: 220
-        easing.type: Easing.InCubic
+        duration: 520
+        easing.type: Easing.Linear
     }
 
     Rectangle {
         anchors.fill: parent
-        opacity: rail.open ? 1 : 0
+        opacity: rail.boot
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop {
@@ -196,13 +159,12 @@ Item {
                 color: "#e6070707"
             }
         }
+    }
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: rail.open ? 220 : 180
-                easing.type: Easing.OutQuad
-            }
-        }
+    MouseArea {
+        anchors.fill: parent
+        enabled: rail.open
+        onClicked: rail.dismiss()
     }
 
     Machine {
@@ -237,12 +199,6 @@ Item {
             }
             ctx.globalAlpha = 1
         }
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        enabled: rail.open
-        onClicked: rail.dismiss()
     }
 
     Repeater {
