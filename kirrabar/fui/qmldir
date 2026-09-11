@@ -5,6 +5,7 @@ singleton Telemetry 1.0 Telemetry.qml
 singleton Network 1.0 Network.qml
 singleton Bt 1.0 Bt.qml
 singleton Notifs 1.0 Notifs.qml
+singleton BarGate 1.0 BarGate.qml
 HudChassis 1.0 HudChassis.qml
 HudBlade 1.0 HudBlade.qml
 HudRing 1.0 HudRing.qml

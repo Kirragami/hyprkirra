@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
@@ -41,8 +42,22 @@ Variants {
         property bool telLive: false
         property string hexBeat: "A7F0C21D"
         property string menu: ""
+        property bool menuOpen: false
         property var trayHandle: null
         property Item trayAnchor: null
+
+        readonly property bool onFocus: {
+            const mine = Hyprland.monitorFor(session.modelData)
+            const f = Hyprland.focusedMonitor
+            if (!f || !mine)
+                return true
+            return mine === f
+        }
+        readonly property var hyprWs: {
+            const mon = Hyprland.monitorFor(session.modelData)
+            return (mon && mon.activeWorkspace) || null
+        }
+        readonly property bool barCovered: !!(panel.hyprWs && panel.hyprWs.hasFullscreen)
 
         readonly property var bat: UPower.displayDevice
         readonly property bool hasBattery: bat && bat.isLaptopBattery && bat.isPresent
@@ -128,6 +143,34 @@ Variants {
 
         function toggleMenu(name: string): void {
             panel.menu = panel.menu === name ? "" : name
+        }
+
+        onMenuChanged: {
+            const now = panel.menu !== ""
+            BarGate.noteOpen(panel.menuOpen, now)
+            panel.menuOpen = now
+        }
+
+        Connections {
+            target: BarGate
+            function onRequestToggle(name: string): void {
+                if (panel.onFocus)
+                    panel.toggleMenu(name)
+                else
+                    panel.menu = ""
+            }
+            function onRequestClose(): void {
+                panel.menu = ""
+            }
+        }
+
+        Connections {
+            target: Hyprland
+            function onRawEvent(event): void {
+                const n = event.name
+                if (n === "fullscreen" || n === "fullscreenv2" || n === "fullscreenstate" || n === "fullscreenstatchange")
+                    Hyprland.refreshWorkspaces()
+            }
         }
 
         function isWifiTray(item: var): bool {
@@ -582,6 +625,8 @@ Variants {
 
         NotifPopup {
             id: mailPop
+            screen: session.modelData
+            attached: !panel.barCovered
             open: panel.menu === "mail"
             anchorItem: mailPip
             hang: panel.lockHang(mailPip)
@@ -604,7 +649,7 @@ Variants {
             originWindow: panel
             faceItem: panel.lockFace
             joinItem: panel.lockJoin
-            locked: panel.menu === "cal" || panel.menu === "vol" || panel.menu === "bat" || panel.menu === "wifi" || panel.menu === "bt" || panel.menu === "mail" || panel.menu === "tray" || panel.menu === "aud"
+            locked: !panel.barCovered && (panel.menu === "cal" || panel.menu === "vol" || panel.menu === "bat" || panel.menu === "wifi" || panel.menu === "bt" || panel.menu === "mail" || panel.menu === "tray" || panel.menu === "aud")
             gap: 120
             offsetX: -88
         }

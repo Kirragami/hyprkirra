@@ -10,10 +10,8 @@ Singleton {
 
     property var items: []
     property var pendingCalls: ({})
-    property int swayCount: 0
-    property bool subscribed: false
 
-    readonly property int count: root.subscribed ? root.swayCount : root.items.length
+    readonly property int count: root.items.length
     readonly property bool pending: root.count > 0
 
     function ingest(line: string): void {
@@ -128,22 +126,6 @@ Singleton {
         return typeof v === "string" ? v : ""
     }
 
-    function readSway(line: string): void {
-        const t = (line || "").trim()
-        if (!t.length || t.charAt(0) !== "{")
-            return
-        let msg
-        try {
-            msg = JSON.parse(t)
-        } catch (e) {
-            return
-        }
-        root.subscribed = true
-        root.swayCount = Number(msg.count) || 0
-        if (root.swayCount === 0)
-            root.items = []
-    }
-
     function dismiss(n: var): void {
         const nid = n && n.id
         if (!nid)
@@ -159,13 +141,50 @@ Singleton {
     }
 
     function clearAll(): void {
-        action.exec(["swaync-client", "-sw", "-C"])
+        const list = root.items.slice()
+        for (let i = 0; i < list.length; i++)
+            root.dismiss(list[i])
         root.items = []
-        root.swayCount = 0
     }
 
     function plain(s: string): string {
         return (s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    }
+
+    function isOrigin(s: string): bool {
+        const t = (s || "").trim()
+        if (!t.length)
+            return false
+        if (/^https?:\/\//i.test(t))
+            return true
+        if (/^[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)+(:\d+)?$/i.test(t))
+            return true
+        if (/^(localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?$/i.test(t))
+            return true
+        return false
+    }
+
+    function isBrowser(app: string): bool {
+        return /\b(chrome|chromium|firefox|brave|edg|vivaldi|opera|webkit)\b/i.test(app || "")
+    }
+
+    function bodyLines(s: string): var {
+        return String(s || "").replace(/<[^>]+>/g, " ").replace(/\r/g, "").split(/\n+/).map(function (l) {
+            return l.replace(/\s+/g, " ").trim()
+        }).filter(function (l) {
+            return l.length > 0
+        })
+    }
+
+    function peel(lines: var, app: string): var {
+        if (!lines || lines.length < 2)
+            return lines
+        const head = lines[0]
+        if (root.isOrigin(head))
+            return lines.slice(1)
+        if (root.isBrowser(app) && head.length <= 36 && !/[.!?]$/.test(head))
+            return lines.slice(1)
+        return lines
     }
 
     function appLabel(n: var): string {
@@ -178,14 +197,30 @@ Singleton {
     function summary(n: var): string {
         if (!n)
             return "—"
-        const s = root.plain(n.summary || "")
-        return s.length ? s : "NO SUMMARY"
+        const app = n.appName || ""
+        let title = root.plain(n.summary || "")
+        const rest = root.plain(root.peel(root.bodyLines(n.body || ""), app).join(" "))
+        if (root.isOrigin(title) && rest.length)
+            title = rest
+        if (!title.length)
+            title = rest.length ? rest : "NO SUMMARY"
+        return root.clip(title, 42)
     }
 
     function body(n: var): string {
         if (!n)
             return ""
-        return root.plain(n.body || "")
+        const app = n.appName || ""
+        const title = root.plain(n.summary || "")
+        let rest = root.plain(root.peel(root.bodyLines(n.body || ""), app).join(" "))
+        if (root.isOrigin(title) && rest.length)
+            return ""
+        if (!title.length || rest === title)
+            return ""
+        if (rest.indexOf(title) === 0)
+            rest = rest.slice(title.length).replace(/^[\s\-–—:]+/, "")
+        rest = rest.replace(/^(https?:\/\/)?[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(:\d+)?\s+/i, "")
+        return rest.length ? root.clip(rest, 90) : ""
     }
 
     function icon(n: var): string {
@@ -202,13 +237,7 @@ Singleton {
     }
 
     function hint(n: var): string {
-        if (!n)
-            return ""
-        if (n.urgency === 2)
-            return "CRIT"
-        if (n.urgency === 0)
-            return "LOW"
-        return "CLR"
+        return n ? "CLR" : ""
     }
 
     Process {
@@ -238,45 +267,8 @@ Singleton {
     }
 
     Process {
-        id: sub
-        command: ["swaync-client", "-sw", "-s"]
-        running: true
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: line => root.readSway(line)
-        }
-        stderr: StdioCollector {}
-        onExited: subRetry.restart()
-    }
-
-    Timer {
-        id: subRetry
-        interval: 1500
-        onTriggered: {
-            if (!sub.running)
-                sub.running = true
-        }
-    }
-
-    Process {
         id: action
         stdout: StdioCollector {}
-        stderr: StdioCollector {}
-    }
-
-    Process {
-        id: seed
-        command: ["swaync-client", "-sw", "-c"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const n = parseInt(text.trim(), 10)
-                if (!isFinite(n))
-                    return
-                root.subscribed = true
-                root.swayCount = n
-            }
-        }
         stderr: StdioCollector {}
     }
 }
