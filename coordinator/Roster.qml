@@ -57,6 +57,12 @@ QtObject {
             delayAfter: 300
         },
         {
+            name: "ctrl",
+            dir: "kirracontroller",
+            enabled: true,
+            delayAfter: 300
+        },
+        {
             name: "util",
             dir: "kirrautil",
             enabled: true,
