@@ -75,7 +75,7 @@ Item {
     NotificationServer {
         id: server
         keepOnReload: true
-        actionsSupported: false
+        actionsSupported: true
         bodySupported: true
         bodyMarkupSupported: false
         imageSupported: true

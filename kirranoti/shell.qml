@@ -22,7 +22,7 @@ ShellRoot {
 
         anchors.right: true
         anchors.top: true
-        margins.top: 72
+        margins.top: 108
         margins.right: 18
 
         mask: Region {

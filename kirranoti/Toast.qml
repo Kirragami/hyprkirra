@@ -213,7 +213,21 @@ Item {
     }
 
     function dismiss(): void {
+        toast.activate()
         toast.leave()
+    }
+
+    function activate(): void {
+        const n = toast.notif
+        if (!n || !n.actions)
+            return
+        const acts = n.actions
+        for (let i = 0; i < acts.length; i++) {
+            if (String(acts[i].identifier || "") === "default") {
+                acts[i].invoke()
+                return
+            }
+        }
     }
 
     function leave(): void {
