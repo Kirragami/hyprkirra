@@ -12,11 +12,12 @@ Item {
     property real boot: 0
     property real heat: 0
     property real fire: 0
+    property real veil: 0
     property bool locked: false
     property bool armed: false
     property int selected: 0
 
-    readonly property bool lifted: bay.armed || bay.heat > 0.01 || bay.fire > 0.01
+    readonly property bool lifted: bay.armed || bay.heat > 0.01 || bay.fire > 0.01 || bay.veil > 0.01
     readonly property real pad: 10
     readonly property real padY: 34
     readonly property real dock: 312
@@ -80,6 +81,7 @@ Item {
         bay.armed = true
         bay.selected = 0
         bay.locked = false
+        veilIn.restart()
         heatUp.restart()
         machine.burst()
         machine.rollMarks()
@@ -90,6 +92,7 @@ Item {
             return
         heatUp.stop()
         stirAnim.stop()
+        veilIn.stop()
         bay.armed = false
         machine.clearMarks()
         retract.restart()
@@ -131,6 +134,43 @@ Item {
         machine.rollMarks()
     }
 
+    Canvas {
+        id: dim
+        z: 0
+        x: machine.x - 240
+        y: machine.y + 10 - (bay.slabCount + 1) * 72 - 320
+        width: machine.width + 480
+        height: machine.y + machine.height + 180 - dim.y
+        opacity: bay.veil
+        visible: opacity > 0.02
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onXChanged: requestPaint()
+        onYChanged: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d")
+            ctx.reset()
+            const cx = width * 0.5
+            const hubY = machine.y - dim.y + machine.height * 0.5
+            const cy = hubY - 240
+            const rx = width * 0.48
+            const ry = height * 0.54
+            ctx.save()
+            ctx.translate(cx, cy)
+            ctx.scale(rx / ry, 1)
+            const g = ctx.createRadialGradient(0, 0, 28, 0, 0, ry)
+            g.addColorStop(0, "rgba(0,0,0,0.68)")
+            g.addColorStop(0.48, "rgba(0,0,0,0.42)")
+            g.addColorStop(0.78, "rgba(0,0,0,0.12)")
+            g.addColorStop(1, "rgba(0,0,0,0)")
+            ctx.beginPath()
+            ctx.arc(0, 0, ry, 0, Math.PI * 2)
+            ctx.fillStyle = g
+            ctx.fill()
+            ctx.restore()
+        }
+    }
+
     Machine {
         id: machine
         x: bay.dockX
@@ -170,6 +210,15 @@ Item {
     }
 
     Component.onCompleted: intro.start()
+
+    NumberAnimation {
+        id: veilIn
+        target: bay
+        property: "veil"
+        to: 1
+        duration: 130
+        easing.type: Easing.OutCubic
+    }
 
     SequentialAnimation {
         id: intro
@@ -254,12 +303,21 @@ Item {
 
     SequentialAnimation {
         id: retract
-        NumberAnimation {
-            target: bay
-            property: "fire"
-            to: 0
-            duration: 260
-            easing.type: Easing.InCubic
+        ParallelAnimation {
+            NumberAnimation {
+                target: bay
+                property: "fire"
+                to: 0
+                duration: 260
+                easing.type: Easing.InCubic
+            }
+            NumberAnimation {
+                target: bay
+                property: "veil"
+                to: 0
+                duration: 260
+                easing.type: Easing.InCubic
+            }
         }
         ScriptAction {
             script: bay.locked = false
@@ -268,7 +326,7 @@ Item {
             target: bay
             property: "heat"
             to: 0
-            duration: 280
+            duration: 180
             easing.type: Easing.InCubic
         }
     }

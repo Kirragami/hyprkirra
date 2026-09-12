@@ -54,7 +54,7 @@ Item {
             ctx.arc(cx, cy, inner, a1, a0, true)
             ctx.closePath()
             if (slab.lit) {
-                ctx.fillStyle = Theme.line
+                ctx.fillStyle = Theme.warn
                 ctx.globalAlpha = 1
                 ctx.fill()
             }
@@ -62,17 +62,6 @@ Item {
             ctx.globalAlpha = slab.lit ? 1 : 0.78
             ctx.lineWidth = slab.lit ? 1.55 : 1.2
             ctx.stroke()
-            if (!slab.lit) {
-                const gap = (outer - inner) * 0.22
-                ctx.beginPath()
-                ctx.arc(cx, cy, outer - gap, a0 + 0.03, a1 - 0.03, false)
-                ctx.arc(cx, cy, inner + gap, a1 - 0.03, a0 + 0.03, true)
-                ctx.closePath()
-                ctx.strokeStyle = Theme.lineDim
-                ctx.globalAlpha = 0.55
-                ctx.lineWidth = 0.9
-                ctx.stroke()
-            }
         }
     }
 
