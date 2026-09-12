@@ -15,6 +15,13 @@ Item {
     property var rod: []
     property var rodT: []
     property var rodWait: []
+    property real heat: 0
+    property bool locked: false
+    property real outerA: 0
+    property real innerA: 0
+    property real outerV: 0
+    property real innerV: 0
+    property int markSeed: 0
 
     readonly property real hubR: Math.max(24, (Math.min(width, height) * 0.5 - 6) / 1.06)
     readonly property real hubX: width * 0.5
@@ -102,6 +109,13 @@ Item {
         }
         for (let i = 0; i < n; i++) {
             const d = tgt[i] - a[i]
+            if (space.locked) {
+                if (Math.abs(d) > 0.006)
+                    a[i] += d * 0.14
+                else
+                    a[i] = tgt[i]
+                continue
+            }
             if (Math.abs(d) < 0.006) {
                 const arriving = wait[i] <= 0 && Math.abs(a[i] - tgt[i]) > 0.0005
                 a[i] = tgt[i]
@@ -129,14 +143,15 @@ Item {
     function nudgeSpin(ang: var, vel: var, damp: real, pKick: real, amp: real): var {
         const a = ang.slice()
         const v = vel.slice()
+        const hold = space.heat > 0.25
         for (let i = 0; i < a.length; i++) {
-            const layerDamp = damp + i * 0.0025
+            const layerDamp = hold ? 0.88 : (damp + i * 0.0025)
             const layerAmp = amp + Math.max(0, 5 - i) * 0.004
             let vi = v[i] * layerDamp
             const still = Math.abs(vi) < 0.001
-            if (still && Math.random() < pKick)
+            if (!hold && still && Math.random() < pKick)
                 vi = (Math.random() * 2 - 1) * layerAmp * (0.5 + Math.random())
-            else if (!still && Math.random() < pKick * 0.22)
+            else if (!hold && !still && Math.random() < pKick * 0.22)
                 vi += (Math.random() * 2 - 1) * layerAmp * 0.28
             a[i] += vi
             v[i] = vi
@@ -147,15 +162,16 @@ Item {
     function nudgeParts(n: int): void {
         const a = space.partA.slice()
         const v = space.partV.slice()
+        const hold = space.heat > 0.25
         while (a.length < n) {
             a.push(0)
             v.push(0)
         }
         for (let i = 0; i < n; i++) {
-            const h = Math.abs(Math.sin(i * 12.9898 + 78.233) * 43758.5453)
-            const u = h - Math.floor(h)
-            const damp = 0.935 + u * 0.045
-            const pKick = 0.006 + u * 0.028
+            const seed = Math.abs(Math.sin(i * 12.9898 + 78.233) * 43758.5453)
+            const u = seed - Math.floor(seed)
+            const damp = hold ? 0.88 : (0.935 + u * 0.045)
+            const pKick = hold ? 0 : (0.006 + u * 0.028)
             const amp = 0.01 + (1 - u) * 0.06
             let vi = v[i] * damp
             if (Math.abs(vi) < 0.0007) {
@@ -171,6 +187,54 @@ Item {
         space.partV = v
     }
 
+    function burst(): void {
+        const punch = 0.28 + Math.max(0.2, space.heat) * 0.32
+        space.innerV = space.innerV * 0.35 - punch
+    }
+
+    function rollMarks(): void {
+        let s = (Math.random() * 2147483646 + 1) | 0
+        if (s === space.markSeed)
+            s = (s + 97) | 0
+        space.markSeed = s
+        plate.requestPaint()
+    }
+
+    function clearMarks(): void {
+        if (space.markSeed === 0)
+            return
+        space.markSeed = 0
+        plate.requestPaint()
+    }
+
+    function pickPair(seed: int, n: int): var {
+        let s = seed >>> 0
+        function rnd() {
+            s = (s + 0x6d2b79f5) >>> 0
+            let t = Math.imul(s ^ (s >>> 15), 1 | s)
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+        }
+        if (n < 2)
+            return [0, 0]
+        const a = Math.floor(rnd() * n)
+        let b = Math.floor(rnd() * (n - 1))
+        if (b >= a)
+            b += 1
+        return [a, b]
+    }
+
+    function stepLayerSpin(): void {
+        const h = space.heat
+        const damp = h > 0.5 ? 0.88 : 0.8
+        let iv = space.innerV * damp
+        if (h > 0.2)
+            iv -= h * h * 0.04
+        space.innerA += iv
+        space.innerV = iv
+        space.outerV = 0
+    }
+
     Timer {
         interval: 33
         running: !space.paused && space.visible && space.width > 8 && space.boot > 0.01
@@ -181,6 +245,7 @@ Item {
             space.ringA = rings[0]
             space.ringV = rings[1]
             space.nudgeParts(160)
+            space.stepLayerSpin()
             space.stepRods(160)
             plate.requestPaint()
         }
@@ -193,6 +258,9 @@ Item {
         if (!space.paused)
             plate.requestPaint()
     }
+    onHeatChanged: plate.requestPaint()
+    onLockedChanged: plate.requestPaint()
+    onMarkSeedChanged: plate.requestPaint()
 
     Canvas {
         id: plate
@@ -233,7 +301,12 @@ Item {
         }
 
         function turn(g, i) {
-            return space.partA[i] || 0
+            const idle = space.partA[i] || 0
+            if (g === 3)
+                return idle + space.innerA
+            if (g >= 5)
+                return idle - space.innerA
+            return idle
         }
 
         ctx.save()
@@ -704,6 +777,23 @@ Item {
                 s: c.s
             })
             outerN += 1
+        }
+
+        if (space.markSeed !== 0) {
+            const elig = []
+            for (let i = 0; i < slabs.length; i++) {
+                const p = slabs[i]
+                if (space.isPortSlab(p))
+                    continue
+                if (p.s < 0.1 && p.rw < 0.014)
+                    continue
+                elig.push(i)
+            }
+            if (elig.length >= 2) {
+                const pair = space.pickPair(space.markSeed, elig.length)
+                fillCol[elig[pair[0]]] = "warn"
+                fillCol[elig[pair[1]]] = "warn"
+            }
         }
 
         for (let i = 0; i < slabs.length; i++) {

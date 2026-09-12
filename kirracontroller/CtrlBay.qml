@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 
+import Quickshell
 import QtQuick
+import "svc"
 
 Item {
     id: bay
@@ -8,12 +10,48 @@ Item {
     property bool paused: false
     property real appear: 0
     property real boot: 0
+    property real heat: 0
+    property real fire: 0
+    property bool locked: false
+    property bool armed: false
+    property int selected: 0
 
+    readonly property bool lifted: bay.armed || bay.heat > 0.01 || bay.fire > 0.01
     readonly property real pad: 10
     readonly property real padY: 34
     readonly property real dock: 312
     readonly property real framePad: 10
     readonly property real clusterGap: 20
+    readonly property real slabGap: 8
+    readonly property var powerActs: [
+        {
+            tag: "LOCK",
+            arg: "lock",
+            icon: "icons/lock.svg"
+        },
+        {
+            tag: "SUSPEND",
+            arg: "suspend",
+            icon: "icons/suspend.svg"
+        },
+        {
+            tag: "LOGOUT",
+            arg: "exit",
+            icon: "icons/logout.svg"
+        },
+        {
+            tag: "REBOOT",
+            arg: "reboot",
+            icon: "icons/reboot.svg"
+        },
+        {
+            tag: "SHUTDOWN",
+            arg: "shutdown",
+            icon: "icons/power.svg"
+        }
+    ]
+    readonly property int slabCount: bay.powerActs.length
+    readonly property string powerSh: `${Quickshell.env("HOME")}/.config/hypr/scripts/power.sh`
     readonly property real viewW: {
         const p = bay.parent
         return p && p.width > 1 ? p.width : 1920
@@ -22,21 +60,11 @@ Item {
         const p = bay.parent
         return p && p.height > 1 ? p.height : 1080
     }
-    readonly property real moduleW: {
-        const usable = bay.viewW - bay.pad * 2
-        const gaps = bay.clusterGap * 2
-        const raw = (usable - gaps) / 3
-        const minW = bay.framePad * 2 + bay.dock + 20 + 96
-        return Math.max(minW, raw)
-    }
     readonly property real dockX: bay.viewW - bay.pad - bay.framePad - bay.dock
     readonly property real dockY: bay.viewH - bay.dock - bay.padY
 
-    width: bay.dock
-    height: bay.dock
-    x: bay.dockX
-    y: bay.dockY
-    opacity: bay.paused ? 0 : bay.appear
+    anchors.fill: parent
+    opacity: (bay.paused && !bay.lifted) ? 0 : bay.appear
     visible: opacity > 0.02
 
     Behavior on opacity {
@@ -46,11 +74,99 @@ Item {
         }
     }
 
+    function wakePower(): void {
+        retract.stop()
+        stirAnim.stop()
+        bay.armed = true
+        bay.selected = 0
+        bay.locked = false
+        heatUp.restart()
+        machine.burst()
+        machine.rollMarks()
+    }
+
+    function sleep(): void {
+        if (!bay.lifted)
+            return
+        heatUp.stop()
+        stirAnim.stop()
+        bay.armed = false
+        machine.clearMarks()
+        retract.restart()
+    }
+
+    function pick(dir: int): void {
+        if (!bay.armed || bay.fire < 0.6)
+            return
+        const n = bay.slabCount
+        const next = (bay.selected + dir + n) % n
+        if (next === bay.selected)
+            return
+        bay.selected = next
+        bay.stir()
+    }
+
+    function focusAt(i: int): void {
+        if (!bay.armed || bay.fire < 0.6)
+            return
+        if (i < 0 || i >= bay.slabCount || i === bay.selected)
+            return
+        bay.selected = i
+        bay.stir()
+    }
+
+    function confirm(): void {
+        if (!bay.armed || bay.fire < 0.8)
+            return
+        const act = bay.powerActs[bay.selected]
+        if (!act)
+            return
+        Command.dismiss()
+        Quickshell.execDetached([bay.powerSh, act.arg])
+    }
+
+    function stir(): void {
+        if (!bay.armed)
+            return
+        machine.rollMarks()
+    }
+
     Machine {
-        anchors.fill: parent
-        paused: bay.paused || bay.appear < 0.02
+        id: machine
+        x: bay.dockX
+        y: bay.dockY
+        width: bay.dock
+        height: bay.dock
+        paused: (bay.paused && !bay.lifted) || bay.appear < 0.02
         boot: bay.boot
+        heat: bay.heat
+        locked: bay.locked
         liveSig: "101000"
+        z: 2
+    }
+
+    Repeater {
+        model: bay.slabCount
+
+        SlabFrame {
+            required property int index
+            readonly property real unit: Math.max(0, Math.min(1, (bay.fire - index * 0.1) / 0.58))
+            readonly property real ease: unit * unit * (3 - 2 * unit)
+            readonly property real destY: machine.y + 10 - (index + 1) * 72
+            readonly property real originY: machine.y + 108
+
+            x: machine.x + (machine.width - width) * 0.5
+            y: originY + (destY - originY) * ease
+            z: 1
+            reveal: ease
+            iconSrc: Qt.resolvedUrl(bay.powerActs[index].icon)
+            lit: bay.armed && index === bay.selected
+            onHovered: bay.focusAt(index)
+            onActivated: {
+                bay.selected = index
+                bay.confirm()
+            }
+        }
     }
 
     Component.onCompleted: intro.start()
@@ -75,6 +191,85 @@ Item {
                 duration: 520
                 easing.type: Easing.Linear
             }
+        }
+    }
+
+    SequentialAnimation {
+        id: heatUp
+        NumberAnimation {
+            target: bay
+            property: "heat"
+            to: 1
+            duration: 70
+            easing.type: Easing.OutCubic
+        }
+        PauseAnimation {
+            duration: 110
+        }
+        ScriptAction {
+            script: bay.locked = true
+        }
+        ParallelAnimation {
+            NumberAnimation {
+                target: bay
+                property: "fire"
+                to: 1
+                duration: 560
+                easing.type: Easing.OutCubic
+            }
+            SequentialAnimation {
+                NumberAnimation {
+                    target: bay
+                    property: "heat"
+                    to: 0
+                    duration: 180
+                    easing.type: Easing.InCubic
+                }
+                ScriptAction {
+                    script: bay.locked = false
+                }
+            }
+        }
+    }
+
+    SequentialAnimation {
+        id: stirAnim
+        PauseAnimation {
+            duration: 70
+        }
+        ScriptAction {
+            script: bay.locked = true
+        }
+        NumberAnimation {
+            target: bay
+            property: "heat"
+            to: 0
+            duration: 160
+            easing.type: Easing.InCubic
+        }
+        ScriptAction {
+            script: bay.locked = false
+        }
+    }
+
+    SequentialAnimation {
+        id: retract
+        NumberAnimation {
+            target: bay
+            property: "fire"
+            to: 0
+            duration: 260
+            easing.type: Easing.InCubic
+        }
+        ScriptAction {
+            script: bay.locked = false
+        }
+        NumberAnimation {
+            target: bay
+            property: "heat"
+            to: 0
+            duration: 280
+            easing.type: Easing.InCubic
         }
     }
 }
