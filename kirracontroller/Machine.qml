@@ -22,6 +22,9 @@ Item {
     property real outerV: 0
     property real innerV: 0
     property int markSeed: 0
+    property var inkIdx: []
+    property var inkHold: []
+    property var inkPool: []
 
     readonly property real hubR: Math.max(24, (Math.min(width, height) * 0.5 - 6) / 1.06)
     readonly property real hubX: width * 0.5
@@ -224,6 +227,35 @@ Item {
         return [a, b]
     }
 
+    function stepInk(): void {
+        const pool = space.inkPool
+        if (!pool || pool.length < 3)
+            return
+        const idx = space.inkIdx.slice()
+        const hold = space.inkHold.slice()
+        while (idx.length < 3) {
+            idx.push(-1)
+            hold.push(0)
+        }
+        for (let s = 0; s < 3; s++) {
+            hold[s] -= 1
+            if (idx[s] >= 0 && hold[s] > 0)
+                continue
+            hold[s] = 45 + Math.floor(Math.random() * 150)
+            let pick = idx[s]
+            for (let t = 0; t < 24; t++) {
+                const cand = pool[Math.floor(Math.random() * pool.length)]
+                if (cand !== idx[0] && cand !== idx[1] && cand !== idx[2]) {
+                    pick = cand
+                    break
+                }
+            }
+            idx[s] = pick
+        }
+        space.inkIdx = idx
+        space.inkHold = hold
+    }
+
     function stepLayerSpin(): void {
         const h = space.heat
         const damp = h > 0.5 ? 0.88 : 0.8
@@ -246,6 +278,7 @@ Item {
             space.ringV = rings[1]
             space.nudgeParts(160)
             space.stepLayerSpin()
+            space.stepInk()
             space.stepRods(160)
             plate.requestPaint()
         }
@@ -678,8 +711,6 @@ Item {
             let col = ""
             if (pick >= 0.8)
                 col = "warn"
-            else if (pick >= 0.55)
-                col = "ink"
             else
                 continue
             smallCands.push({
@@ -695,13 +726,10 @@ Item {
         smallCands.sort(function (u, v) {
             return v.pick - u.pick
         })
-        let smallInk = 0
         let smallWarn = 0
         for (let k = 0; k < smallCands.length; k++) {
             const c = smallCands[k]
-            if (c.col === "warn" && smallWarn >= 4)
-                continue
-            if (c.col === "ink" && smallInk >= 4)
+            if (smallWarn >= 4)
                 continue
             if (hitsPlaced(c.rr, c.rw, c.a, c.s, 0.05))
                 continue
@@ -711,72 +739,29 @@ Item {
                 a: c.a,
                 s: c.s
             })
-            fillCol[c.i] = c.col
-            if (c.col === "warn")
-                smallWarn += 1
-            else
-                smallInk += 1
+            fillCol[c.i] = "warn"
+            smallWarn += 1
         }
-        let largePick = -1
-        let largeScore = 0
-        for (let i = 0; i < slabs.length; i++) {
-            const p = slabs[i]
-            if (space.isPortSlab(p) || fillCol[i] || !isLarge(p))
-                continue
-            const rr = pack(p.r)
-            const rw = p.rw * 1.2
-            if (hitsPlaced(rr, rw, p.a, p.s, 0.04))
-                continue
-            const score = p.rw * p.s
-            if (score > largeScore) {
-                largeScore = score
-                largePick = i
+
+        if (space.inkPool.length === 0) {
+            const pool = []
+            for (let i = 0; i < slabs.length; i++) {
+                const p = slabs[i]
+                if (space.isPortSlab(p))
+                    continue
+                if (p.s < 0.12 && p.rw < 0.016)
+                    continue
+                pool.push(i)
             }
+            space.inkPool = pool
+            space.inkHold = [0, 12, 28]
+            space.stepInk()
         }
-        if (largePick >= 0) {
-            const p = slabs[largePick]
-            fillCol[largePick] = "ink"
-            placed.push({
-                rr: pack(p.r),
-                rw: p.rw * 1.2,
-                a: p.a,
-                s: p.s
-            })
-        }
-        const outerCands = []
-        for (let i = 0; i < slabs.length; i++) {
-            const p = slabs[i]
-            if (space.isPortSlab(p) || fillCol[i] || !isOuterFill(p))
-                continue
-            const rr = p.r
-            const rw = p.rw
-            if (hitsPlaced(rr, rw, p.a, p.s, 0.03))
-                continue
-            outerCands.push({
-                i: i,
-                a: p.a,
-                s: p.s,
-                rr: rr,
-                rw: rw,
-                score: p.rw * Math.min(p.s, 0.55)
-            })
-        }
-        outerCands.sort(function (u, v) {
-            return v.score - u.score
-        })
-        let outerN = 0
-        for (let k = 0; k < outerCands.length && outerN < 2; k++) {
-            const c = outerCands[k]
-            if (hitsPlaced(c.rr, c.rw, c.a, c.s, 0.05))
-                continue
-            fillCol[c.i] = "ink"
-            placed.push({
-                rr: c.rr,
-                rw: c.rw,
-                a: c.a,
-                s: c.s
-            })
-            outerN += 1
+        const lit = space.inkIdx
+        for (let k = 0; k < lit.length && k < 3; k++) {
+            const i = lit[k]
+            if (i >= 0)
+                fillCol[i] = "ink"
         }
 
         if (space.markSeed !== 0) {
