@@ -111,7 +111,7 @@ Variants {
             if (m === "tray")
                 return panel.trayAnchor
             if (m === "aud")
-                return nowPlaying.artFace
+                return nowPlaying.egg ? null : nowPlaying.artFace
             return null
         }
         readonly property Item lockJoin: {
@@ -138,7 +138,10 @@ Variants {
         function lockHang(item: Item): int {
             if (!item)
                 return 120
-            return Math.round(item.lockR - item.height * 0.5 + 120)
+            const r = Number(item.lockR)
+            if (!isFinite(r) || r <= 1)
+                return 120
+            return Math.round(r - item.height * 0.5 + 120)
         }
 
         function toggleMenu(name: string): void {

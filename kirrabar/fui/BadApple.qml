@@ -13,18 +13,57 @@ Singleton {
     property real position: 0
     property bool tape: false
     property string frame: ""
+    property string cut: ""
+    property var cuts: []
     property real start: 0
     property real lastPos: 0
     property int cols: 220
     property int rows: 32
     readonly property bool ready: root.tape
 
+    function secs(raw: real): real {
+        if (!(raw > 0) || !isFinite(raw))
+            return 0
+        if (raw > 10000)
+            return raw / 1000000
+        return raw
+    }
+
+    function cutFor(len: real): string {
+        const s = root.secs(len)
+        if (!(s > 0))
+            return ""
+        const list = root.cuts
+        for (let i = 0; i < list.length; i++) {
+            const c = list[i]
+            if (s >= c.min && s <= c.max)
+                return c.id
+        }
+        return ""
+    }
+
     function read(line: string): void {
         const t = line.trim()
         if (!t.length)
             return
+        if (t.startsWith("HAVE ")) {
+            const out = []
+            const parts = t.slice(5).trim().split(/\s+/)
+            for (let i = 0; i < parts.length; i++) {
+                const m = parts[i].match(/^([A-Za-z0-9_-]+):(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/)
+                if (!m)
+                    continue
+                out.push({
+                    id: m[1],
+                    min: Number(m[2]),
+                    max: Number(m[3])
+                })
+            }
+            root.cuts = out
+            root.tape = out.length > 0
+            return
+        }
         if (t.startsWith("OK")) {
-            root.tape = true
             const p = t.split(/\s+/)
             if (p.length >= 3) {
                 const c = Number(p[1])
@@ -37,7 +76,6 @@ Singleton {
             return
         }
         if (t.startsWith("ERR")) {
-            root.tape = false
             return
         }
         if (t.startsWith("F "))
@@ -58,12 +96,12 @@ Singleton {
             root.frame = ""
             return
         }
-        if (root.playing && root.tape)
+        if (root.playing && root.tape && root.cut.length)
             root.go(root.position)
     }
 
     onPlayingChanged: {
-        if (!root.active || !root.tape)
+        if (!root.active || !root.tape || !root.cut.length)
             return
         if (root.playing)
             root.go(root.position)
@@ -74,7 +112,18 @@ Singleton {
     }
 
     onTapeChanged: {
-        if (root.tape && root.active && root.playing && !play.running)
+        if (root.tape && root.active && root.playing && root.cut.length && !play.running)
+            root.go(root.position)
+    }
+
+    onCutChanged: {
+        if (!root.cut.length) {
+            kick.stop()
+            play.running = false
+            root.frame = ""
+            return
+        }
+        if (root.active && root.playing && root.tape)
             root.go(root.position)
     }
 
@@ -95,6 +144,7 @@ Singleton {
             "python3",
             "-u",
             Quickshell.shellPath("fui/badapple.py"),
+            root.cut,
             root.start.toFixed(3)
         ]
         running: false
@@ -104,7 +154,7 @@ Singleton {
         }
         stderr: StdioCollector {}
         onExited: {
-            if (root.active && root.playing && root.tape)
+            if (root.active && root.playing && root.tape && root.cut.length)
                 retry.restart()
         }
     }
@@ -113,7 +163,7 @@ Singleton {
         id: kick
         interval: 16
         onTriggered: {
-            if (root.active && root.playing && root.tape && !play.running)
+            if (root.active && root.playing && root.tape && root.cut.length && !play.running)
                 play.running = true
         }
     }
@@ -122,7 +172,7 @@ Singleton {
         id: retry
         interval: 800
         onTriggered: {
-            if (root.active && root.playing && root.tape && !play.running)
+            if (root.active && root.playing && root.tape && root.cut.length && !play.running)
                 root.go(root.position)
         }
     }

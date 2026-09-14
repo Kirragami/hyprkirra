@@ -41,7 +41,14 @@ Item {
             return ""
         return ((p.trackTitle || "") + " " + (p.trackArtist || "") + " " + (p.trackAlbumArtist || "") + " " + (p.trackAlbum || "")).toLowerCase()
     }
-    readonly property bool badApple: /bad\s*apple/.test(track.hay)
+    readonly property real trackLen: {
+        const p = track.player
+        if (!p || !p.lengthSupported)
+            return 0
+        return p.length
+    }
+    readonly property string appleCut: BadApple.cutFor(track.trackLen)
+    readonly property bool badApple: /bad\s*apple/.test(track.hay) && track.appleCut.length
     readonly property bool egg: track.badApple && BadApple.tape
     readonly property int wantWidth: 12 + 1 + 10 + 36 + 10 + 168 + 8 + 28 + 4
     readonly property string deviceName: {
@@ -433,6 +440,12 @@ Item {
         value: track.player ? track.player.position : 0
     }
 
+    Binding {
+        target: BadApple
+        property: "cut"
+        value: track.appleCut
+    }
+
     Timer {
         interval: 250
         running: track.badApple && track.playing
@@ -750,6 +763,8 @@ Item {
         Item {
             id: eggBox
             anchors.fill: parent
+            readonly property real lockR: 0
+            readonly property real lockInner: 0
 
             Canvas {
                 id: egg

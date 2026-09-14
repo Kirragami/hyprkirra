@@ -7,16 +7,38 @@ import sys
 import time
 from pathlib import Path
 
-ASSET = Path(__file__).resolve().with_name("badapple.bin.gz")
+HERE = Path(__file__).resolve().parent
 MAGIC = b"KBA1"
 COLS = 220
 ROWS = 32
 FPS = 12
 HDR = struct.Struct("<4sHHHHI")
 
+# Drop in another .bin.gz and add a row. Duration windows are loose on purpose.
+CUTS = (
+    {"id": "pv", "file": "badapple.bin.gz", "min": 195, "max": 270},
+    {"id": "full", "file": "badapple-full.bin.gz", "min": 300, "max": 345},
+)
+CUT_IDS = tuple(c["id"] for c in CUTS)
 
-def asset_path() -> Path:
-    return ASSET
+
+def cut_by_id(cid: str) -> dict | None:
+    for c in CUTS:
+        if c["id"] == cid:
+            return c
+    return None
+
+
+def asset_path(cid: str = "pv") -> Path | None:
+    c = cut_by_id(cid)
+    if not c:
+        return None
+    path = HERE / c["file"]
+    return path if path.is_file() else None
+
+
+def present_cuts() -> list:
+    return [c for c in CUTS if (HERE / c["file"]).is_file()]
 
 
 def find_video() -> Path | None:
@@ -109,8 +131,12 @@ def pack_video(src: Path, dest: Path, cols: int = COLS, rows: int = ROWS, fps: i
     print(f"wrote {dest} ({n} frames, {cols}x{rows} @{fps}fps, {dest.stat().st_size} bytes)")
 
 
-def play(start: float) -> None:
-    cols, rows, fps, frames = load_tape(asset_path())
+def play(cid: str, start: float) -> None:
+    path = asset_path(cid)
+    if path is None:
+        print("ERR", flush=True)
+        return
+    cols, rows, fps, frames = load_tape(path)
     n = len(frames)
     pix = cols * rows
     print(f"OK {cols} {rows} {fps} {n}", flush=True)
@@ -142,31 +168,40 @@ def play(start: float) -> None:
 def main() -> None:
     args = sys.argv[1:]
     if args and args[0] == "--probe":
-        if not asset_path().is_file():
+        have = present_cuts()
+        if not have:
             print("ERR", flush=True)
             return
-        try:
-            cols, rows, fps, frames = load_tape(asset_path())
-        except Exception:
-            print("ERR", flush=True)
-            return
-        print(f"OK {cols} {rows} {fps} {len(frames)}", flush=True)
+        bits = " ".join(f"{c['id']}:{c['min']}-{c['max']}" for c in have)
+        print("HAVE " + bits, flush=True)
         return
 
     if args and args[0] == "--pack":
-        src = Path(args[1]) if len(args) > 1 else find_video()
-        dest = Path(args[2]) if len(args) > 2 else asset_path()
-        if src is None or not Path(src).is_file():
+        rest = args[1:]
+        cid = "pv"
+        if rest and rest[0] in CUT_IDS:
+            cid = rest[0]
+            rest = rest[1:]
+        spec = cut_by_id(cid)
+        src = Path(rest[0]) if rest else find_video()
+        dest = Path(rest[1]) if spec and len(rest) > 1 else (HERE / spec["file"] if spec else None)
+        if spec is None or dest is None or src is None or not Path(src).is_file():
             print("ERR no video", file=sys.stderr)
             sys.exit(1)
         pack_video(Path(src), dest)
         return
 
-    start = float(args[0]) if args else 0.0
-    if not asset_path().is_file():
+    cid = "pv"
+    start = 0.0
+    if args and args[0] in CUT_IDS:
+        cid = args[0]
+        start = float(args[1]) if len(args) > 1 else 0.0
+    elif args:
+        start = float(args[0])
+    if asset_path(cid) is None:
         print("ERR", flush=True)
         sys.exit(1)
-    play(start)
+    play(cid, start)
 
 
 if __name__ == "__main__":
