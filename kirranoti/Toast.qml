@@ -160,7 +160,7 @@ Item {
     function appKey(n: var): string {
         if (!n)
             return ""
-        return String(n.desktopEntry || n.appName || "").toLowerCase()
+        return String(n.appName || n.desktopEntry || "").toLowerCase()
     }
 
     function titleKey(n: var): string {

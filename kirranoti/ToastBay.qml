@@ -29,9 +29,6 @@ Item {
 
     function dropSid(sid: string): void {
         const key = String(sid)
-        const n = bay.store[key]
-        if (n)
-            n.tracked = false
         for (let i = 0; i < live.count; i++) {
             if (String(live.get(i).sid) === key) {
                 live.remove(i)
@@ -43,15 +40,62 @@ Item {
         bay.store = map
     }
 
+    function appKey(n: var): string {
+        if (!n)
+            return ""
+        return String(n.appName || n.desktopEntry || "").toLowerCase()
+    }
+
+    function titleKey(n: var): string {
+        if (!n)
+            return ""
+        return String(n.summary || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase()
+    }
+
+    function isCli(n: var): bool {
+        const a = bay.appKey(n)
+        return a === "" || a === "notify-send" || a === "notify_send" || a === "libnotify" || a === "gdbus"
+    }
+
+    function sameAppSummary(a: var, b: var): bool {
+        if (!a || !b)
+            return false
+        if (bay.isCli(a) || bay.isCli(b))
+            return false
+        const title = bay.titleKey(b)
+        if (!title.length || bay.titleKey(a) !== title)
+            return false
+        return bay.appKey(a) === bay.appKey(b)
+    }
+
+    function cardOf(sid: string): var {
+        const key = String(sid)
+        for (let i = 0; i < stack.children.length; i++) {
+            const card = stack.children[i]
+            if (card && String(card.sid || "") === key)
+                return card
+        }
+        return null
+    }
+
     function ingest(n: var): void {
         if (!n)
             return
-        for (let i = 0; i < stack.children.length; i++) {
-            const card = stack.children[i]
-            if (card.matches && card.matches(n)) {
+        for (let i = 0; i < live.count; i++) {
+            const sid = String(live.get(i).sid)
+            const card = bay.cardOf(sid)
+            const cur = (card && card.pending) ? card.pending : bay.store[sid]
+            if (!bay.sameAppSummary(cur, n))
+                continue
+            if (card && card.replaceWith) {
                 card.replaceWith(n)
                 return
             }
+            if (cur && cur !== n)
+                cur.tracked = false
+            n.tracked = true
+            bay.rewire(sid, n)
+            return
         }
         const sid = String(bay.nextSid++)
         bay.rewire(sid, n)

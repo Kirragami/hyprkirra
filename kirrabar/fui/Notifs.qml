@@ -151,6 +151,17 @@ Singleton {
         return (s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
     }
 
+    function clip(s: string, n: int): string {
+        const t = String(s || "")
+        if (t.length <= n)
+            return t
+        let cut = t.slice(0, n)
+        const sp = cut.lastIndexOf(" ")
+        if (sp >= Math.floor(n * 0.55))
+            cut = cut.slice(0, sp)
+        return cut.replace(/[\s.,;:!?]+$/, "") + "..."
+    }
+
     function isOrigin(s: string): bool {
         const t = (s || "").trim()
         if (!t.length)
