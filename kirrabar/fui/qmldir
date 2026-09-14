@@ -27,3 +27,4 @@ CallChip 1.0 CallChip.qml
 VoiceWave 1.0 VoiceWave.qml
 singleton CallWatch 1.0 CallWatch.qml
 singleton Spectrum 1.0 Spectrum.qml
+singleton BadApple 1.0 BadApple.qml

@@ -12,7 +12,7 @@ Item {
     property bool selected: false
     readonly property bool compact: track.width <= 318
     property var player: null
-    readonly property alias artFace: coverBox
+    property Item artFace: track.egg ? eggBox : coverBox
     signal clicked()
 
     readonly property bool playing: {
@@ -35,6 +35,14 @@ Item {
     readonly property bool away: track.spotify && !track.spotifyOut && (track.playing || track.remoteLatch)
     readonly property bool remote: track.away && track.remoteReady
     readonly property bool wide: !track.compact && track.width > 318
+    readonly property string hay: {
+        const p = track.player
+        if (!p)
+            return ""
+        return ((p.trackTitle || "") + " " + (p.trackArtist || "") + " " + (p.trackAlbumArtist || "") + " " + (p.trackAlbum || "")).toLowerCase()
+    }
+    readonly property bool badApple: /bad\s*apple/.test(track.hay)
+    readonly property bool egg: track.badApple && BadApple.tape
     readonly property int wantWidth: 12 + 1 + 10 + 36 + 10 + 168 + 8 + 28 + 4
     readonly property string deviceName: {
         const fetched = (track.fetchedDevice || "").trim()
@@ -51,8 +59,8 @@ Item {
     readonly property string deviceLabel: track.deviceName.length ? ("ON " + track.deviceName) : "ON REMOTE"
 
     implicitWidth: 0
-    implicitHeight: 44
-    clip: !track.selected
+    implicitHeight: track.egg ? Theme.barHeight : 44
+    clip: !track.egg && !track.selected
     opacity: track.live ? 1 : 0
     visible: width > 2
 
@@ -404,7 +412,35 @@ Item {
     Binding {
         target: Spectrum
         property: "active"
-        value: track.live && track.playing && track.wide && !track.away
+        value: track.live && track.playing && track.wide && !track.away && !track.egg
+    }
+
+    Binding {
+        target: BadApple
+        property: "active"
+        value: track.badApple && track.live
+    }
+
+    Binding {
+        target: BadApple
+        property: "playing"
+        value: track.badApple && track.playing
+    }
+
+    Binding {
+        target: BadApple
+        property: "position"
+        value: track.player ? track.player.position : 0
+    }
+
+    Timer {
+        interval: 250
+        running: track.badApple && track.playing
+        repeat: true
+        onTriggered: {
+            if (track.player)
+                track.player.positionChanged()
+        }
     }
 
     Item {
@@ -412,6 +448,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 4
+        visible: !track.egg
 
         Rectangle {
             id: rule
@@ -701,6 +738,66 @@ Item {
                     ctx.fillRect(x - bw / 2, h - bh, bw, bh)
                 }
                 ctx.globalAlpha = 1
+            }
+        }
+    }
+
+    Item {
+        id: eggLayer
+        anchors.fill: parent
+        visible: track.egg
+
+        Item {
+            id: eggBox
+            anchors.fill: parent
+
+            Canvas {
+                id: egg
+                anchors.fill: parent
+                antialiasing: false
+
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+                onVisibleChanged: requestPaint()
+
+                Connections {
+                    target: BadApple
+                    function onFrameChanged(): void {
+                        egg.requestPaint()
+                    }
+                }
+
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    const cols = BadApple.cols
+                    const rows = BadApple.rows
+                    const bits = BadApple.frame
+                    const w = width
+                    const h = height
+                    if (w < 4 || h < 4 || !bits.length)
+                        return
+
+                    const cw = w / cols
+                    const ch = h / rows
+                    const rw = Math.max(0.7, cw * 0.78)
+                    const rh = Math.max(0.7, ch * 0.78)
+                    const ox = (cw - rw) * 0.5
+                    const oy = (ch - rh) * 0.5
+
+                    ctx.fillStyle = Theme.line
+                    for (let y = 0; y < rows; y++) {
+                        for (let x = 0; x < cols; x++) {
+                            const i = y * cols + x
+                            const v = i < bits.length ? parseInt(bits.charAt(i), 16) / 15 : 0
+                            if (!(v > 0.12))
+                                continue
+                            ctx.globalAlpha = 0.18 + 0.82 * v
+                            ctx.fillRect(x * cw + ox, y * ch + oy, rw, rh)
+                        }
+                    }
+                    ctx.globalAlpha = 1
+                }
             }
         }
     }
