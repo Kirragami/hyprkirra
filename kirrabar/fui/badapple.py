@@ -152,11 +152,18 @@ def play(cid: str, start: float) -> None:
     last = -1
     while True:
         now = time.monotonic()
-        i = int((base + (now - t0)) * fps) % n
+        i = int((base + (now - t0)) * fps)
+        if i < 0:
+            i = 0
+        elif i >= n:
+            i = n - 1
         if i != last:
             sys.stdout.write("F " + unpack_line(frames[i], pix) + "\n")
             sys.stdout.flush()
             last = i
+        if last == n - 1 and (base + (now - t0)) * fps >= n:
+            time.sleep(0.08)
+            continue
         nxt = t0 + ((i + 1) / fps - base)
         delay = nxt - time.monotonic()
         if delay > 0.001:
