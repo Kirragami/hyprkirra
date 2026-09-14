@@ -57,11 +57,12 @@ Item {
                 ctx.fillStyle = Theme.warn
                 ctx.globalAlpha = 1
                 ctx.fill()
+            } else {
+                ctx.strokeStyle = Theme.line
+                ctx.globalAlpha = 0.78
+                ctx.lineWidth = 1.2
+                ctx.stroke()
             }
-            ctx.strokeStyle = Theme.line
-            ctx.globalAlpha = slab.lit ? 1 : 0.78
-            ctx.lineWidth = slab.lit ? 1.55 : 1.2
-            ctx.stroke()
         }
     }
 
