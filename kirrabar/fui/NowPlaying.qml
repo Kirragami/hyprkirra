@@ -236,9 +236,9 @@ Item {
         const title = ((p.trackTitle || "") + " " + (p.trackArtist || "") + " " + (p.trackAlbum || "")).toLowerCase()
         if (/teams|google meet|zoom|discord|skype|webex|jitsi|slack call|voice connected/.test(title))
             return true
-        if (/teams|zoom|discord|skype/.test(name) && !track.isBrowser(name))
-            return true
-        if (CallWatch.connected && track.isBrowser(name))
+        if (track.isBrowser(name))
+            return false
+        if (/teams|zoom|discord|skype/.test(name))
             return true
         if (CallWatch.connected && CallWatch.appName.length) {
             const app = CallWatch.appName.toLowerCase()
