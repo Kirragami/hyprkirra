@@ -11,18 +11,27 @@ Singleton {
     property string mode: ""
 
     signal power()
+    signal search()
     signal close()
 
     function callPower(): void {
         if (cmd.armed && cmd.mode === "power") {
-            cmd.armed = false
-            cmd.mode = ""
-            cmd.close()
+            cmd.dismiss()
             return
         }
         cmd.mode = "power"
         cmd.armed = true
         cmd.power()
+    }
+
+    function callSearch(): void {
+        if (cmd.armed && cmd.mode === "search") {
+            cmd.dismiss()
+            return
+        }
+        cmd.mode = "search"
+        cmd.armed = true
+        cmd.search()
     }
 
     function dismiss(): void {

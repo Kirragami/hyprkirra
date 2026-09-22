@@ -17,6 +17,7 @@ Item {
     property var rodWait: []
     property real heat: 0
     property bool locked: false
+    property real accentOut: 0
     property real outerA: 0
     property real innerA: 0
     property real outerV: 0
@@ -293,6 +294,7 @@ Item {
     }
     onHeatChanged: plate.requestPaint()
     onLockedChanged: plate.requestPaint()
+    onAccentOutChanged: plate.requestPaint()
     onMarkSeedChanged: plate.requestPaint()
 
     Canvas {
@@ -798,8 +800,19 @@ Item {
             let inn = 1
             if (!fillA && p.g < 6)
                 inn = 1 + rod * (p.out ? 1.15 : 2.35)
-            const col = fillCol[i] === "warn" ? warn : (fillA ? ink : (p.c === "warn" ? ink : tint(p.c)))
-            slab(R * rr, R * p.rw * rwMul, a0, sp, col, fillA, p.k * th, 0, p.w, inn)
+            let col = fillCol[i] === "warn" ? warn : (fillA ? ink : (p.c === "warn" ? ink : tint(p.c)))
+            let strokeA = p.k * th
+            let glow = 0
+            let useFill = fillA
+            if (p.out && space.accentOut > 0.01) {
+                const u = Math.max(0, Math.min(1, space.accentOut))
+                col = warn
+                useFill = 0
+                strokeA = (p.k * (1 - u) + 0.96 * u) * th
+                glow = 0.16 * u
+                inn = 1 + rod * 1.15
+            }
+            slab(R * rr, R * p.rw * rwMul, a0, sp, col, useFill, strokeA, glow, p.w, inn)
         }
 
         for (let i = 0; i < plist.length; i++) {

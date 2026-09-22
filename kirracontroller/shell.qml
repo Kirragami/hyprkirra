@@ -11,6 +11,9 @@ ShellRoot {
         function power(): void {
             Command.callPower()
         }
+        function search(): void {
+            Command.callSearch()
+        }
         function close(): void {
             Command.dismiss()
         }
@@ -73,31 +76,31 @@ ShellRoot {
 
                 Shortcut {
                     sequence: "Up"
-                    enabled: bay.lifted
+                    enabled: bay.lifted && (bay.mode === "power" || bay.mode === "search")
                     onActivated: bay.pick(1)
                 }
 
                 Shortcut {
                     sequence: "Down"
-                    enabled: bay.lifted
+                    enabled: bay.lifted && (bay.mode === "power" || bay.mode === "search")
                     onActivated: bay.pick(-1)
                 }
 
                 Shortcut {
                     sequence: "Return"
-                    enabled: bay.lifted
+                    enabled: bay.lifted && (bay.mode === "power" || bay.mode === "search")
                     onActivated: bay.confirm()
                 }
 
                 Shortcut {
                     sequence: "Enter"
-                    enabled: bay.lifted
+                    enabled: bay.lifted && (bay.mode === "power" || bay.mode === "search")
                     onActivated: bay.confirm()
                 }
 
                 Shortcut {
                     sequence: "Space"
-                    enabled: bay.lifted
+                    enabled: bay.lifted && bay.mode === "power"
                     onActivated: bay.confirm()
                 }
 
@@ -106,6 +109,10 @@ ShellRoot {
                     function onPower() {
                         if (session.onFocusedMonitor)
                             bay.wakePower()
+                    }
+                    function onSearch() {
+                        if (session.onFocusedMonitor)
+                            bay.wakeSearch()
                     }
                     function onClose() {
                         bay.sleep()

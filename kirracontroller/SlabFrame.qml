@@ -9,7 +9,9 @@ Item {
 
     property real reveal: 0
     property bool lit: false
+    property bool inkOnLit: true
     property string iconSrc: ""
+    property string tag: ""
 
     signal hovered()
     signal activated()
@@ -77,11 +79,28 @@ Item {
         fillMode: Image.PreserveAspectFit
         source: slab.iconSrc
         opacity: slab.grow
+        visible: slab.iconSrc.length > 0 && glyph.status !== Image.Error
         layer.enabled: true
         layer.effect: MultiEffect {
             colorization: 1.0
-            colorizationColor: slab.lit ? Theme.bg : Theme.line
+            colorizationColor: (slab.lit && slab.inkOnLit) ? Theme.bg : Theme.line
         }
+    }
+
+    Text {
+        visible: !glyph.visible && slab.tag.length > 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 16
+        width: 22
+        height: 22
+        text: slab.tag
+        color: (slab.lit && slab.inkOnLit) ? Theme.bg : Theme.line
+        font.family: Theme.fontHud
+        font.pixelSize: 16
+        font.bold: true
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        opacity: slab.grow
     }
 
     MouseArea {

@@ -2,3 +2,4 @@ module svc
 singleton Accent 1.0 Accent.qml
 singleton Theme 1.0 Theme.qml
 singleton Command 1.0 Command.qml
+singleton Apps 1.0 Apps.qml
